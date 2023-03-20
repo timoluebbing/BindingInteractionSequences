@@ -6,12 +6,6 @@ import pymunk.pygame_util
 import math
 import pandas as pd
 
-
-def draw(space, window, draw_options):
-    window.fill("white")
-    
-    space.debug_draw(draw_options)
-    pygame.display.update()
     
 def create_boundaries(space, width, height):
     rects = [
@@ -42,16 +36,16 @@ def create_ball(space, radius, mass, position):
     return shape
 
 def create_actors(space, width, height):
-    COLOR = (0, 0, 0, 100)
+    COLOR = (255, 255, 255, 100)
     rects = [
-        [(200, height - 200), (100, 300), COLOR, 100],
-        [(800, height - 200), (100, 300), COLOR, 100],
+        [(150, height - 200), (50, 200), COLOR, 200],
+        [(850, height - 200), (50, 200), COLOR, 200],
     ]
     
     for pos, size, color, mass in rects:
         body = pymunk.Body()
         body.position = pos
-        shape = pymunk.Poly.create_box(body, size)
+        shape = pymunk.Poly.create_box(body, size, radius=2)
         shape.color = color
         shape.mass = mass
         shape.elasticity = 0.4
@@ -81,7 +75,7 @@ def throw_ball_event(space, event, ball, pressed_position, line):
     if not ball:
         if event.type == pygame.MOUSEBUTTONDOWN:
             pressed_position = pygame.mouse.get_pos()
-            ball = create_ball(space, 40, 10, pressed_position)
+            ball = create_ball(space, 20, 10, pressed_position)
     elif pressed_position:
         if event.type == pygame.MOUSEBUTTONDOWN:
             pressed_position = apply_impulse_at_angle(ball, line)
@@ -98,9 +92,14 @@ def apply_impulse_at_angle(ball, line):
     fy = math.sin(angle) * force
     ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
     return None
+
+def draw(space, window, draw_options):
+    window.fill("white")
     
+    space.debug_draw(draw_options)
+    pygame.display.update()
     
-def run(window, width, height, fps):
+def run(window, width, height, fps, max_frames, int_seq='A'):
     run = True
     clock = pygame.time.Clock()
     dt = 1 / fps
@@ -145,12 +144,12 @@ def run(window, width, height, fps):
         clock.tick(fps)
         
         # Record the positional data for 250 frames
-        if recording and frame_id < 251:
+        if recording and frame_id < max_frames:
             row = export_positional_data_for_one_time_step(space, frame_id)
             data.append(row)
             frame_id += 1
             
-        elif recording and frame_id == 251:
+        elif recording and frame_id == max_frames:
             recording = False
             print("Recording finished")
             break
@@ -174,19 +173,25 @@ def export_data_to_csv(data, header, filename):
         writer.writerow(header)
         writer.writerows(data)
 
-def main():
+def main(int_seq='A'):
     
     pygame.init()
 
-    FPS = 60
+    FPS = 30
+    MAX_FRAMES = 201
     WIDTH, HEIGHT = 1000, 800
     window = pygame.display.set_mode((WIDTH, HEIGHT))
     
-    data = run(window, WIDTH, HEIGHT, FPS)
+    data = run(window, WIDTH, HEIGHT, FPS, MAX_FRAMES)
     print(f"Frames recorded: {len(data)}")
     
-    header = ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "ball_x", "ball_y"]
-    directory = "Data_Preparation/Interactions/test_data.csv"
+    headers = {
+        'A': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "ball_x", "ball_y"],
+        'B': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "..."]
+        # ...
+        }
+    header = headers[int_seq]
+    directory = f"Data_Preparation/Interactions/interaction_{int_seq}.csv"
     export_data_to_csv(data, header, directory)
 
 if __name__ == "__main__":
