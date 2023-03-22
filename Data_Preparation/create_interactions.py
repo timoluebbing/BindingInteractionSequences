@@ -84,29 +84,20 @@ def throw_ball_event(space, event, ball, pressed_position, line):
         ball = None
     return space, ball, pressed_position
 
-def apply_impulse_at_angle(ball, line):
-    ball.body.body_type = pymunk.Body.DYNAMIC
-    angle = calculate_angle(*line)
-    force = calculate_eucl_dis(*line) * 50
-    fx = math.cos(angle) * force
-    fy = math.sin(angle) * force
-    ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
-    return None
-
 def draw(space, window, draw_options):
     window.fill("white")
     
     space.debug_draw(draw_options)
     pygame.display.update()
     
-def run(window, width, height, fps, max_frames, int_seq='A'):
+def run(window, width, height, fps, max_frames, interaction='A'):
     run = True
     clock = pygame.time.Clock()
     dt = 1 / fps
 
     frame_id = 0
     recording = False
-    data = []
+    data = None
     
     space = pymunk.Space()
     space.gravity = (0, 981)
@@ -134,6 +125,7 @@ def run(window, width, height, fps, max_frames, int_seq='A'):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
                 print("Recording...")
                 recording = True
+                data = []
 
             # Interactions events:
             space, ball, pressed_position = throw_ball_event(
@@ -173,7 +165,7 @@ def export_data_to_csv(data, header, filename):
         writer.writerow(header)
         writer.writerows(data)
 
-def main(int_seq='A'):
+def main(interaction='A'):
     
     pygame.init()
 
@@ -181,18 +173,19 @@ def main(int_seq='A'):
     MAX_FRAMES = 201
     WIDTH, HEIGHT = 1000, 800
     window = pygame.display.set_mode((WIDTH, HEIGHT))
-    
-    data = run(window, WIDTH, HEIGHT, FPS, MAX_FRAMES)
-    print(f"Frames recorded: {len(data)}")
-    
-    headers = {
-        'A': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "ball_x", "ball_y"],
-        'B': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "..."]
-        # ...
-        }
-    header = headers[int_seq]
-    directory = f"Data_Preparation/Interactions/interaction_{int_seq}.csv"
-    export_data_to_csv(data, header, directory)
+
+    if data := run(window, WIDTH, HEIGHT, FPS, MAX_FRAMES):
+        
+        print(f"Frames recorded: {len(data)}")
+
+        headers = {
+            'A': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "ball_x", "ball_y"],
+            'B': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "..."]
+            # ...
+            }
+        header = headers[interaction]
+        directory = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
+        export_data_to_csv(data, header, directory)
 
 if __name__ == "__main__":
     main()    

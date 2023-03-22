@@ -62,7 +62,7 @@ def main():
     path = "Data_Preparation/Interactions/interaction_A0.csv"
 
     renderer = Interaction_Renderer(path)
-    x, y = renderer.load_sequence_data(20)
+    x, y = renderer.load_positions_at_frame_t(20)
     print(x, y)
 
     renderer.render()
