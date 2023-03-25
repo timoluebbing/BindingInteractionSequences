@@ -116,8 +116,8 @@ def run(window, width, height, fps, max_frames, interaction='A'):
 
             # Close window
             if event.type == pygame.QUIT:
-                # row = export_positional_data_for_one_time_step(space, frame_id)
-                # print(row)
+                row = export_data_for_one_time_step(space, frame_id)
+                print(row)
                 run = False
                 break
 
@@ -137,7 +137,7 @@ def run(window, width, height, fps, max_frames, interaction='A'):
         
         # Record the positional data for 250 frames
         if recording and frame_id < max_frames:
-            row = export_positional_data_for_one_time_step(space, frame_id)
+            row = export_data_for_one_time_step(space, frame_id)
             data.append(row)
             frame_id += 1
             
@@ -150,11 +150,12 @@ def run(window, width, height, fps, max_frames, interaction='A'):
     
     return data
     
-def export_positional_data_for_one_time_step(space, frame_id):
+def export_data_for_one_time_step(space, frame_id):
     shapes = space.shapes[4:] # Exclude boundary shapes
     # body_list = [shape.body for shape in shapes]
     body_position_list = [shape.body.position for shape in shapes]
-    positions = [[pos.x, pos.y] for pos in body_position_list]
+    body_pos_angle_list = [(shape.body.position, shape.body.angle) for shape in shapes]
+    positions = [[pos.x, pos.y, angle] for (pos, angle) in body_pos_angle_list]
     flat_positions = [x for xs in positions for x in xs]
     flat_positions.insert(0, frame_id)
     return flat_positions
@@ -179,7 +180,7 @@ def main(interaction='A'):
         print(f"Frames recorded: {len(data)}")
 
         headers = {
-            'A': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "ball_x", "ball_y"],
+            'A': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
             'B': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "..."]
             # ...
             }

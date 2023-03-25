@@ -1,5 +1,7 @@
 import pandas as pd
 import pygame
+import math
+
 
 class Interaction_Renderer():
     def __init__(self, path):
@@ -7,7 +9,7 @@ class Interaction_Renderer():
         self.max_fps = 201
         self.width = 1000
         self.height = 800
-        self.black, self.white = (0, 0, 0), (255, 255, 255)
+        self.black, self.white, self.red = (0, 0, 0), (255, 255, 255), (255, 0, 0)
         self.df = pd.read_csv(path, sep=',')
         self.num_features = (len(self.df.columns) - 1) // 2
         self.interaction_label = path[-18:-5]
@@ -15,17 +17,21 @@ class Interaction_Renderer():
     def load_positions_at_frame_t(self, frame):
         row = self.df.iloc[frame]
         coordinates = row.values[1::]                    # remove frame
-        xs = coordinates[::2]
-        ys = coordinates[1::2]
-        return xs, ys
+        xs = coordinates[::3]
+        ys = coordinates[1::3]
+        os = coordinates[2::3]
+        return xs, ys, os
     
     def draw(self, frame):
         self.screen.fill(self.white)
         frame_mod =  frame % self.max_fps
         
-        xs, ys = self.load_positions_at_frame_t(frame_mod)
-        for x, y in zip(xs, ys):
+        xs, ys, os = self.load_positions_at_frame_t(frame_mod)
+        for x, y, o in zip(xs, ys, os):
             pygame.draw.circle(self.screen, self.black, (x, y), 10)
+            line_x = x + math.cos(o) * 10
+            line_y = y + math.sin(o) * 10
+            pygame.draw.line(self.screen, self.red, (x, y), (line_x, line_y), 2)
         
         
     def render(self):
@@ -59,11 +65,11 @@ class Interaction_Renderer():
 
 def main():
     
-    path = "Data_Preparation/Interactions/interaction_A1.csv"
+    path = "Data_Preparation/Interactions/interaction_A2_orientation.csv"
 
     renderer = Interaction_Renderer(path)
-    x, y = renderer.load_positions_at_frame_t(20)
-    print(x, y)
+    x, y, o = renderer.load_positions_at_frame_t(20)
+    print(x, y, o)
 
     renderer.render()
     
