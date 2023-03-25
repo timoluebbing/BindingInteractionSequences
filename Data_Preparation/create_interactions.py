@@ -35,11 +35,11 @@ def create_ball(space, radius, mass, position):
     space.add(body, shape)
     return shape
 
-def create_actors(space, width, height):
-    COLOR = (255, 255, 255, 100)
+def create_actors(space, width, height, interaction='A'):
+    WHITE = (255, 255, 255, 100)
     rects = [
-        [(150, height - 200), (50, 200), COLOR, 200],
-        [(850, height - 200), (50, 200), COLOR, 200],
+        [(200, height - 200), (30, 160), WHITE, 100],
+        [(800, height - 200), (30, 160), WHITE, 100],
     ]
     
     for pos, size, color, mass in rects:
