@@ -1,181 +1,196 @@
-import sys
 import csv
 import pygame
 import pymunk
 import pymunk.pygame_util
 import math
-import pandas as pd
 
+
+class Interaction():
     
-def create_boundaries(space, width, height):
-    rects = [
-        # [position, size]
-        [(width/2, height - 10), (width, 20)],   # bottom
-        [(width/2, 10), (width, 20)],            # ceiling
-        [(10, height/2), (20, height)],          # left wall
-        [(width - 10, height/2), (20, height)],  # right wall
-    ]    
-    
-    for pos, size in rects:
+    def __init__(self, width, height, fps, max_frames):
+        
+        pygame.init()
+        self.window = pygame.display.set_mode((width, height))
+        self.width, self.height = width, height
+        
+        self.is_running = True
+        self.clock = pygame.time.Clock()
+        self.fps = fps
+        self.dt = 1 / self.fps
+        self.max_frames = max_frames
+
+        self.frame_id = 0
+        self.recording = False
+        self.data = None
+        
+        self.space = pymunk.Space()
+        self.space.gravity = (0, 981)
+
+        # Add objects to the space
+        self.create_boundaries()
+        self.actor1, self.actor2 = self.create_actors()
+        self.pressed_position = None
+        self.ball = None
+        self.line = None
+
+        self.draw_options = pymunk.pygame_util.DrawOptions(self.window) 
+        
+    def create_boundaries(self):  # sourcery skip: class-extract-method
+        rects = [
+            # [position, size]
+            [(self.width/2, self.height - 10), (self.width, 20)],   # bottom
+            [(self.width/2, 10), (self.width, 20)],            # ceiling
+            [(10, self.height/2), (20, self.height)],          # left wall
+            [(self.width - 10, self.height/2), (20, self.height)],  # right wall
+        ]    
+        
+        for pos, size in rects:
+            body = pymunk.Body(body_type=pymunk.Body.STATIC)
+            body.position = pos
+            shape = pymunk.Poly.create_box(body, size)
+            shape.elasticity = 0.4
+            shape.friction = 0.5
+            self.space.add(body, shape)
+        
+    def create_ball(self, radius, mass):
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        body.position = pos
-        shape = pymunk.Poly.create_box(body, size)
-        shape.elasticity = 0.4
-        shape.friction = 0.5
-        space.add(body, shape)
-    
-def create_ball(space, radius, mass, position):
-    body = pymunk.Body(body_type=pymunk.Body.STATIC)
-    body.position = position
-    shape = pymunk.Circle(body, radius)
-    shape.mass = mass
-    shape.elasticity = 0.9
-    shape.friction = 0.4
-    shape.color = (0, 255, 0, 100)
-    space.add(body, shape)
-    return shape
-
-def create_actors(space, width, height, interaction='A'):
-    WHITE = (255, 255, 255, 100)
-    rects = [
-        [(200, height - 200), (30, 160), WHITE, 100],
-        [(800, height - 200), (30, 160), WHITE, 100],
-    ]
-    
-    for pos, size, color, mass in rects:
-        body = pymunk.Body()
-        body.position = pos
-        shape = pymunk.Poly.create_box(body, size, radius=2)
-        shape.color = color
+        body.position = self.pressed_position
+        shape = pymunk.Circle(body, radius)
         shape.mass = mass
-        shape.elasticity = 0.4
+        shape.elasticity = 0.9
         shape.friction = 0.4
-        space.add(body, shape)
+        shape.color = (0, 255, 0, 100)
+        self.space.add(body, shape)
+        return shape
 
-def calculate_eucl_dis(p1, p2):
-    return math.sqrt((p2[1] - p1[1])**2 + (p2[0] - p1[0])**2)
+    def create_actors(self, interaction='A'):
+        WHITE = (255, 255, 255, 100)
+        rects = [
+            [(200, self.height - 200), (30, 160), WHITE, 100],
+            [(800, self.height - 200), (30, 160), WHITE, 100],
+        ]
+        actors = []
+        
+        for pos, size, color, mass in rects:
+            body = pymunk.Body()
+            body.position = pos
+            shape = pymunk.Poly.create_box(body, size, radius=2)
+            shape.color = color
+            shape.mass = mass
+            shape.elasticity = 0.4
+            shape.friction = 0.4
+            self.space.add(body, shape)
+            actors.append(shape)
+        return tuple(actors)
 
-def calculate_angle(p1, p2):
-    return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
+    def apply_impulse_at_angle(self):
+            self.ball.body.body_type = pymunk.Body.DYNAMIC
+            angle = calculate_angle(*self.line)
+            force = calculate_eucl_dis(*self.line) * 50
+            fx = math.cos(angle) * force
+            fy = math.sin(angle) * force
+            self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
+            return None
 
-def throw_ball_event(space, event, ball, pressed_position, line):
+    def throw_ball_event(self, event):
+        
+        if self.ball and self.pressed_position:
+            self.line = [self.pressed_position, pygame.mouse.get_pos()]
+
+        if not self.ball:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.pressed_position = pygame.mouse.get_pos()
+                self.ball = self.create_ball(20, 10)
+        elif self.pressed_position:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pressed_position = self.apply_impulse_at_angle()
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            self.space.remove(self.ball, self.ball.body)      
+            self.ball = None
     
-    def apply_impulse_at_angle(ball, line):
-        ball.body.body_type = pymunk.Body.DYNAMIC
-        angle = calculate_angle(*line)
-        force = calculate_eucl_dis(*line) * 50
-        fx = math.cos(angle) * force
-        fy = math.sin(angle) * force
-        ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
-        return None
-    
-    if ball and pressed_position:
-        line = [pressed_position, pygame.mouse.get_pos()]
-
-    if not ball:
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pressed_position = pygame.mouse.get_pos()
-            ball = create_ball(space, 20, 10, pressed_position)
-    elif pressed_position:
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pressed_position = apply_impulse_at_angle(ball, line)
-    elif event.type == pygame.MOUSEBUTTONDOWN:
-        space.remove(ball, ball.body)      
-        ball = None
-    return space, ball, pressed_position
-
-def draw(space, window, draw_options):
-    window.fill("white")
-    
-    space.debug_draw(draw_options)
-    pygame.display.update()
-    
-def run(window, width, height, fps, max_frames, interaction='A'):
-    run = True
-    clock = pygame.time.Clock()
-    dt = 1 / fps
-
-    frame_id = 0
-    recording = False
-    data = None
-    
-    space = pymunk.Space()
-    space.gravity = (0, 981)
-
-    # Add objects to the space
-    create_boundaries(space, width, height)
-    create_actors(space, width, height)
-    pressed_position = None
-    ball = None
-    line = None
-
-    draw_options = pymunk.pygame_util.DrawOptions(window)    
-
-    while run:
+    def event_handler(self):
         for event in pygame.event.get():
-
             # Close window
             if event.type == pygame.QUIT:
-                row = export_data_for_one_time_step(space, frame_id)
-                print(row)
-                run = False
+                # row = self.export_data_for_one_time_step()
+                # print(row)
+                self.is_running = False
                 break
 
             # Start recording the sequence with keyboard press (s)
             if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
                 print("Recording...")
-                recording = True
-                data = []
+                self.recording = True
+                self.data = []
 
             # Interactions events:
-            space, ball, pressed_position = throw_ball_event(
-                space, event, ball, pressed_position, line)        
+            self.throw_ball_event(event)
 
-        draw(space, window, draw_options)
-        space.step(dt)
-        clock.tick(fps)
+    def draw(self):
+        self.window.fill("white")
         
-        # Record the positional data for 250 frames
-        if recording and frame_id < max_frames:
-            row = export_data_for_one_time_step(space, frame_id)
-            data.append(row)
-            frame_id += 1
+        self.space.debug_draw(self.draw_options)
+        pygame.display.update()
+        
+    def run(self, interaction='A'):   
+
+        while self.is_running:
+            ### MAIN LOOP ###
+            self.event_handler()
+            self.draw()
             
-        elif recording and frame_id == max_frames:
-            recording = False
-            print("Recording finished")
-            break
+            # Record the positional data for 250 frames
+            if self.recording:
+                if self.frame_id < self.max_frames:
+                    row = self.export_data_for_one_time_step()
+                    self.data.append(row)
+                    self.frame_id += 1
 
-    pygame.quit()
-    
-    return data
-    
-def export_data_for_one_time_step(space, frame_id):
-    shapes = space.shapes[4:] # Exclude boundary shapes
-    # body_list = [shape.body for shape in shapes]
-    body_position_list = [shape.body.position for shape in shapes]
-    body_pos_angle_list = [(shape.body.position, shape.body.angle) for shape in shapes]
-    positions = [[pos.x, pos.y, angle] for (pos, angle) in body_pos_angle_list]
-    flat_positions = [x for xs in positions for x in xs]
-    flat_positions.insert(0, frame_id)
-    return flat_positions
+                elif self.frame_id == self.max_frames:
+                    self.recording = False
+                    print("Recording finished")
+                    break
+                
+            self.space.step(self.dt)
+            self.clock.tick(self.fps)
 
-def export_data_to_csv(data, header, filename):
-    with open(filename, 'w') as f:
-        writer = csv.writer(f, lineterminator="\n")
-        writer.writerow(header)
-        writer.writerows(data)
+        pygame.quit()
+
+        return self.data
+        
+    def export_data_for_one_time_step(self):
+        shapes = self.space.shapes[4:] # Exclude boundary shapes
+        body_pos_angle_list = [
+            (shape.body.position, shape.body.angle) for shape in shapes
+            ]
+        data = [
+            [pos.x, pos.y, angle] for (pos, angle) in body_pos_angle_list
+            ]
+        flat_data = [x for xs in data for x in xs]
+        flat_data.insert(0, self.frame_id)
+        return flat_data
+
+    def export_data_to_csv(self, header, filename):
+        with open(filename, 'w') as f:
+            writer = csv.writer(f, lineterminator="\n")
+            writer.writerow(header)
+            writer.writerows(self.data)
+
+def calculate_eucl_dis(p1, p2):
+        return math.sqrt((p2[1] - p1[1])**2 + (p2[0] - p1[0])**2)
+
+def calculate_angle(p1, p2):
+    return math.atan2(p2[1] - p1[1], p2[0] - p1[0])
 
 def main(interaction='A'):
     
-    pygame.init()
-
     FPS = 30
     MAX_FRAMES = 201
     WIDTH, HEIGHT = 1000, 800
-    window = pygame.display.set_mode((WIDTH, HEIGHT))
+    
+    simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES)
 
-    if data := run(window, WIDTH, HEIGHT, FPS, MAX_FRAMES):
+    if data := simulation.run():
         
         print(f"Frames recorded: {len(data)}")
 
@@ -186,7 +201,7 @@ def main(interaction='A'):
             }
         header = headers[interaction]
         directory = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
-        export_data_to_csv(data, header, directory)
+        simulation.export_data_to_csv(header, directory)
 
 if __name__ == "__main__":
     main()    

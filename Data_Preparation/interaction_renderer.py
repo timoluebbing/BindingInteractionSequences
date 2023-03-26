@@ -4,6 +4,7 @@ import math
 
 
 class Interaction_Renderer():
+    
     def __init__(self, path):
         self.fps = 30
         self.max_fps = 201
@@ -26,11 +27,11 @@ class Interaction_Renderer():
         self.screen.fill(self.white)
         frame_mod =  frame % self.max_fps
         
-        xs, ys, os = self.load_positions_at_frame_t(frame_mod)
-        for x, y, o in zip(xs, ys, os):
+        xs, ys, angles = self.load_positions_at_frame_t(frame_mod)
+        for x, y, angle in zip(xs, ys, angles):
             pygame.draw.circle(self.screen, self.black, (x, y), 10)
-            line_x = x + math.cos(o) * 10
-            line_y = y + math.sin(o) * 10
+            line_x = x + math.cos(angle) * 10
+            line_y = y + math.sin(angle) * 10
             pygame.draw.line(self.screen, self.red, (x, y), (line_x, line_y), 2)
         
         
@@ -65,7 +66,7 @@ class Interaction_Renderer():
 
 def main():
     
-    path = "Data_Preparation/Interactions/interaction_A2_orientation.csv"
+    path = "Data_Preparation/Interactions/interaction_A1.csv"
 
     renderer = Interaction_Renderer(path)
     x, y, o = renderer.load_positions_at_frame_t(20)
