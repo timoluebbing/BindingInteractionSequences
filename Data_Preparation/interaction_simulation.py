@@ -89,8 +89,8 @@ class Interaction():
             force = calculate_eucl_dis(*self.line) * 50
             fx = math.cos(angle) * force
             fy = math.sin(angle) * force
+            print(self.ball.body)
             self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
-            return None
 
     def throw_ball_event(self, event):
         
@@ -103,12 +103,20 @@ class Interaction():
                 self.ball = self.create_ball(20, 10)
         elif self.pressed_position:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                pressed_position = self.apply_impulse_at_angle()
+                self.apply_impulse_at_angle()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.space.remove(self.ball, self.ball.body)      
             self.ball = None
+            
+    def jumping_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+            print(self.actor2.body.body_type)
+            self.actor2.body.body_type = pymunk.Body.DYNAMIC
+            print(self.actor2.body)
+            self.actor2.body.apply_impulse_at_local_point((0, -50000), (0,0))
     
     def event_handler(self):
+        
         for event in pygame.event.get():
             # Close window
             if event.type == pygame.QUIT:
@@ -125,6 +133,7 @@ class Interaction():
 
             # Interactions events:
             self.throw_ball_event(event)
+            self.jumping_event(event)
 
     def draw(self):
         self.window.fill("white")
