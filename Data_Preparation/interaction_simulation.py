@@ -32,6 +32,7 @@ class Interaction():
         self.pressed_position = None
         self.ball = None
         self.line = None
+        self.already_collided = False
 
         self.draw_options = pymunk.pygame_util.DrawOptions(self.window) 
         
@@ -52,9 +53,9 @@ class Interaction():
             shape.friction = 0.5
             self.space.add(body, shape)
         
-    def create_ball(self, radius, mass):
+    def create_ball(self, radius, mass, position):
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        body.position = self.pressed_position
+        body.position = position
         shape = pymunk.Circle(body, radius)
         shape.mass = mass
         shape.elasticity = 0.9
@@ -66,8 +67,8 @@ class Interaction():
     def create_actors(self, interaction='A'):
         WHITE = (255, 255, 255, 100)
         rects = [
-            [(200, self.height - 200), (30, 160), WHITE, 100],
-            [(800, self.height - 200), (30, 160), WHITE, 100],
+            [(200, self.height - 200), (30, 160), WHITE, 200],
+            [(800, self.height - 200), (30, 160), WHITE, 200],
         ]
         actors = []
         
@@ -83,13 +84,19 @@ class Interaction():
             actors.append(shape)
         return tuple(actors)
 
+    def jumping_event(self, event):
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+                print(self.actor2.body.body_type)
+                self.actor2.body.body_type = pymunk.Body.DYNAMIC
+                print(self.actor2.body)
+                self.actor2.body.apply_impulse_at_local_point((0, -50000), (0,0))
+    
     def apply_impulse_at_angle(self):
             self.ball.body.body_type = pymunk.Body.DYNAMIC
             angle = calculate_angle(*self.line)
             force = calculate_eucl_dis(*self.line) * 50
             fx = math.cos(angle) * force
             fy = math.sin(angle) * force
-            print(self.ball.body)
             self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
 
     def throw_ball_event(self, event):
@@ -100,21 +107,54 @@ class Interaction():
         if not self.ball:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 self.pressed_position = pygame.mouse.get_pos()
-                self.ball = self.create_ball(20, 10)
+                self.ball = self.create_ball(20, 10, self.pressed_position)
         elif self.pressed_position:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 self.apply_impulse_at_angle()
+                self.pressed_position = None
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.space.remove(self.ball, self.ball.body)      
             self.ball = None
-            
-    def jumping_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-            print(self.actor2.body.body_type)
-            self.actor2.body.body_type = pymunk.Body.DYNAMIC
-            print(self.actor2.body)
-            self.actor2.body.apply_impulse_at_local_point((0, -50000), (0,0))
     
+    def throw_ball_back_event(self, event):
+        
+        if self.pressed_position and self.ball:
+            self.line = [self.pressed_position, pygame.mouse.get_pos()]
+
+        print(self.already_collided)
+
+        if self.already_collided:
+            self.space.add_default_collision_handler()
+            return
+
+        if not self.ball:
+            return
+        elif self.pressed_position:
+            self.manage_collisions(0, 0)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.apply_impulse_at_angle()
+                self.pressed_position = None
+
+        
+    
+    def manage_collisions(self, object_a, object_b):
+        self.collision_handler = self.space.add_collision_handler(object_a, object_b)
+        self.collision_handler.data["surface"] = self.window
+        self.collision_handler.separate = self.on_collision
+
+    def on_collision(self, arbiter, space, data):
+        self.already_collided = True
+        if self.already_collided:
+            return
+        print("Collision")
+        if self.ball:
+            self.pressed_position = self.ball.body.position
+            self.space.remove(self.ball, self.ball.body)
+            self.ball = self.create_ball(20, 10, self.pressed_position)
+
+        return True
+
     def event_handler(self):
         
         for event in pygame.event.get():
@@ -133,6 +173,7 @@ class Interaction():
 
             # Interactions events:
             self.throw_ball_event(event)
+            self.throw_ball_back_event(event)
             self.jumping_event(event)
 
     def draw(self):
