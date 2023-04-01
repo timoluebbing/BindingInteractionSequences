@@ -5,15 +5,14 @@ import math
 
 class Interaction_Renderer():
     
-    def __init__(self, path):
+    def __init__(self, path, interaction):
         self.fps = 30
         self.max_fps = 201
         self.width = 1000
         self.height = 800
         self.black, self.white, self.red = (0, 0, 0), (255, 255, 255), (255, 0, 0)
         self.df = pd.read_csv(path, sep=',')
-        self.num_features = (len(self.df.columns) - 1) // 2
-        self.interaction_label = path[-18:-5]
+        self.interaction = interaction
         
     def load_positions_at_frame_t(self, frame):
         row = self.df.iloc[frame]
@@ -25,6 +24,11 @@ class Interaction_Renderer():
     
     def draw(self, frame):
         self.screen.fill(self.white)
+
+        my_font = pygame.font.SysFont('Arial', 50)
+        text = my_font.render(self.interaction, False, self.black)
+        self.screen.blit(text, (30, 30))
+        
         frame_mod =  frame % self.max_fps
         
         xs, ys, angles = self.load_positions_at_frame_t(frame_mod)
@@ -33,12 +37,11 @@ class Interaction_Renderer():
             line_x = x + math.cos(angle) * 10
             line_y = y + math.sin(angle) * 10
             pygame.draw.line(self.screen, self.red, (x, y), (line_x, line_y), 2)
-        
-        
+           
     def render(self):
         
         pygame.init()
-        pygame.display.set_caption(f'Sequence: {self.interaction_label}')
+        pygame.display.set_caption(f'Sequence: {self.interaction}')
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.clock = pygame.time.Clock()
         
@@ -64,15 +67,13 @@ class Interaction_Renderer():
         
 
 
-def main():
+def main(interaction='A'):
     
-    path = "Data_Preparation/Interactions/interaction_A4.csv"
+    path = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
 
-    renderer = Interaction_Renderer(path)
-    x, y, o = renderer.load_positions_at_frame_t(20)
-    print(x, y, o)
+    renderer = Interaction_Renderer(path, interaction)
 
     renderer.render()
     
 if __name__ == "__main__":
-    main()
+    main('C1')

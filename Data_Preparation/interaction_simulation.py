@@ -67,7 +67,7 @@ class Interaction():
     def create_actors(self, interaction='A'):
         WHITE = (255, 255, 255, 100)
         rects = [
-            [(200, self.height - 200), (30, 160), WHITE, 200],
+            [(200, self.height - 200), (30, 160), WHITE, 100],
             [(800, self.height - 200), (30, 160), WHITE, 200],
         ]
         actors = []
@@ -89,7 +89,7 @@ class Interaction():
                 print(self.actor2.body.body_type)
                 self.actor2.body.body_type = pymunk.Body.DYNAMIC
                 print(self.actor2.body)
-                self.actor2.body.apply_impulse_at_local_point((0, -50000), (0,0))
+                self.actor2.body.apply_impulse_at_local_point((0, -100000), (0,0))
     
     def apply_impulse_at_angle(self):
             self.ball.body.body_type = pymunk.Body.DYNAMIC
@@ -139,11 +139,11 @@ class Interaction():
     def manage_collisions(self, object_a, object_b):
         self.collision_handler = self.space.add_collision_handler(object_a, object_b)
         self.collision_handler.data["surface"] = self.window
-        self.collision_handler.separate = self.on_collision
+        self.collision_handler.begin = self.on_collision
 
     def on_collision(self, arbiter, space, data):
         if self.already_collided:
-            return
+            return True
         self.already_collided = True
         print("Collision")
         if self.ball:
@@ -153,7 +153,7 @@ class Interaction():
 
         return True
 
-    def event_handler(self):
+    def event_handler(self, interaction='A'):
         
         for event in pygame.event.get():
             # Close window
@@ -170,9 +170,14 @@ class Interaction():
                 self.data = []
 
             # Interactions events:
-            self.throw_ball_event(event)
-            self.throw_ball_back_event(event)
-            self.jumping_event(event)
+            event_sequence = {
+                'A': [self.throw_ball_event],
+                'B': [self.throw_ball_event],
+                'C': [self.throw_ball_event, self.throw_ball_back_event],
+                'D': [self.throw_ball_event, self.jumping_event]
+            }
+            for func in event_sequence[interaction]:
+                func(event)
 
     def draw(self):
         self.window.fill("white")
@@ -184,7 +189,7 @@ class Interaction():
 
         while self.is_running:
             ### MAIN LOOP ###
-            self.event_handler()
+            self.event_handler(interaction)
             self.draw()
             
             # Record the positional data for 250 frames
@@ -238,18 +243,20 @@ def main(interaction='A'):
     
     simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES)
 
-    if data := simulation.run():
+    if data := simulation.run(interaction):
         
         print(f"Frames recorded: {len(data)}")
 
         headers = {
             'A': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
-            'B': ["frame", "actor1_x", "actor1_y", "actor2_x", "actor2_y", "..."]
+            'B': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
+            'C': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
+            'D': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
             # ...
             }
         header = headers[interaction]
-        directory = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
+        directory = f"Data_Preparation/Interactions/interaction_{interaction}_temp.csv"
         simulation.export_data_to_csv(header, directory)
 
 if __name__ == "__main__":
-    main()    
+    main('C')    
