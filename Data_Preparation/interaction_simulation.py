@@ -115,28 +115,26 @@ class Interaction():
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.space.remove(self.ball, self.ball.body)      
             self.ball = None
+            self.already_collided = False
     
     def throw_ball_back_event(self, event):
-        
+        if not self.ball:
+            return
+
+        self.manage_collisions(0, 0)
+
         if self.pressed_position and self.ball:
             self.line = [self.pressed_position, pygame.mouse.get_pos()]
 
-        print(self.already_collided)
+        # print(self.already_collided)
 
-        if self.already_collided:
-            self.space.add_default_collision_handler()
-            return
-
-        if not self.ball:
-            return
-        elif self.pressed_position:
-            self.manage_collisions(0, 0)
-
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                self.apply_impulse_at_angle()
-                self.pressed_position = None
-
-        
+        if (
+            self.already_collided
+            and self.pressed_position
+            and event.type == pygame.MOUSEBUTTONDOWN
+        ):
+            self.apply_impulse_at_angle()
+            self.pressed_position = None
     
     def manage_collisions(self, object_a, object_b):
         self.collision_handler = self.space.add_collision_handler(object_a, object_b)
@@ -144,9 +142,9 @@ class Interaction():
         self.collision_handler.separate = self.on_collision
 
     def on_collision(self, arbiter, space, data):
-        self.already_collided = True
         if self.already_collided:
             return
+        self.already_collided = True
         print("Collision")
         if self.ball:
             self.pressed_position = self.ball.body.position

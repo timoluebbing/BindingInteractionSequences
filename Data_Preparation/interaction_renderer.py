@@ -66,7 +66,7 @@ class Interaction_Renderer():
 
 def main():
     
-    path = "Data_Preparation/Interactions/interaction_A1.csv"
+    path = "Data_Preparation/Interactions/interaction_A4.csv"
 
     renderer = Interaction_Renderer(path)
     x, y, o = renderer.load_positions_at_frame_t(20)
