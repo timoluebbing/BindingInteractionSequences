@@ -61,7 +61,17 @@ class Preprocessor():
             axis=1)
 
         # Convert radient to sin(radient)
-        df[['actor1_o', 'actor2_o', 'ball_o']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.sin)
+        df[['actor1_o_sin', 'actor2_o_sin', 'ball_o_sin']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.sin)
+        df[['actor1_o_cos', 'actor2_o_cos', 'ball_o_cos']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.cos)
+        
+        df.drop(columns=['actor1_o', 'actor2_o', 'ball_o'], inplace=True)
+        
+        # Reindex columns to correct input ordering
+        columns = ['actor1_x', 'actor1_y', 'actor1_o_sin', 'actor1_o_cos', 
+                   'actor2_x', 'actor2_y', 'actor2_o_sin', 'actor2_o_cos',
+                   'ball_x', 'ball_y', 'ball_o_sin', 'ball_o_cos',
+                   'dis_act1_act2', 'dis_act1_ball', 'dis_act2_ball']
+        df = df.reindex(columns=columns)
         
         return df
     
@@ -148,8 +158,8 @@ def main():
     tensor = torch.load(save_to_path)
     print(tensor.shape)
     
-    scaled = prepro.std_scale_data(tensor, scale_factor=1)
-    print(scaled[1,:])
+    # scaled = prepro.std_scale_data(tensor, scale_factor=1)
+    # print(scaled[1,:])
 
 if __name__ == '__main__':
     main()
