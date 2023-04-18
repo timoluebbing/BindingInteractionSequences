@@ -28,6 +28,7 @@ class Interaction():
         self.recording = False
         self.data = None
         
+        # Pymunk Space and physics
         self.space = pymunk.Space()
         self.space.gravity = (0, 981)
 
@@ -42,8 +43,7 @@ class Interaction():
         # Ball
         self.ball = None
         self.add_ball_at_random_actor()
-        # self.throw_time = np.random.randint(20, 30)
-        self.throw_time = 20
+        self.throw_time = np.random.randint(15, 40)
         print(self.throw_time)
         
         # Extra functionality
@@ -51,6 +51,8 @@ class Interaction():
         self.line = None
         self.already_collided = False
         self.already_jumped = False
+        self.already_thrown = False
+        self.collision_detected_at_frame = 0
 
         self.draw_options = pymunk.pygame_util.DrawOptions(self.window) 
         
@@ -161,26 +163,31 @@ class Interaction():
         fy = math.sin(angle) * force
         self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
     
-    # Automated simulation
-    def apply_impulse_at_random_angle(self, ball_position, actor_position):
-        random_angle = 0
-        if self.ball_spawned_at_actor is self.actor2:
-            random_angle = 7*math.pi / 6 # np.random.uniform( 7*math.pi / 6, 5*math.pi / 4)
+    # Automated throw
+    def apply_impulse_at_random_angle(self, ball_position, actor_position, throw_back=False):
+        if (
+            throw_back
+            and self.ball_spawned_at_actor is self.actor1
+            or not throw_back
+            and self.ball_spawned_at_actor is self.actor2
+        ):
+            random_param = np.random.uniform( -0.2, 0.35)
+            angle = 7*math.pi / 6 + random_param
         else:
-            random_angle = 11*math.pi / 6 # np.random.uniform( 11*math.pi / 6, 7*math.pi / 4)
-        
+            random_param = np.random.uniform( -0.35, 0.2)
+            angle = 11*math.pi / 6 + random_param
+            
         force_scale = 100
         distance = calculate_eucl_dis(ball_position, actor_position)
         force = math.sqrt(10 * distance) * force_scale
-        
-        fx = math.cos(random_angle) * force
-        fy = math.sin(random_angle) * force
-        
+
+        fx = math.cos(angle) * force
+        fy = math.sin(angle) * force
+
         self.ball.body.body_type = pymunk.Body.DYNAMIC
         self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
         
-    # Manually
-    def jumping_event(self, event):
+    def jumping_event_manually(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
             print(self.actor2.body.body_type)
             self.actor2.body.body_type = pymunk.Body.DYNAMIC
@@ -210,8 +217,7 @@ class Interaction():
         else:
             get_positions_and_jump(self.actor2, self.actor1)
     
-    # Manually
-    def throw_ball_event(self, event):
+    def throw_ball_event_manually(self, event):
         
         if self.ball and self.pressed_position:
             self.line = [self.pressed_position, pygame.mouse.get_pos()]
@@ -239,12 +245,11 @@ class Interaction():
                 opposite_actor_position = self.actor1.body.position
             self.apply_impulse_at_random_angle(ball_position, opposite_actor_position)         
     
-    # Manually
-    def throw_ball_back_event(self, event):
+    def throw_ball_back_event_manually(self, event):
         if not self.ball:
             return
 
-        self.manage_collisions(0, 0)
+        self.manage_collisions(0, 0, self.on_collision_manually)
 
         if self.pressed_position and self.ball:
             self.line = [self.pressed_position, pygame.mouse.get_pos()]
@@ -256,38 +261,64 @@ class Interaction():
         ):
             self.apply_impulse_at_angle()
             self.pressed_position = None
+    
+    def on_collision_manually(self, arbiter, space, data):
+        if self.already_collided:
+            return True
+        
+        self.already_collided = True
+        print("Collision")
             
+        if self.ball:
+            self.pressed_position = self.ball.body.position
+            self.remove_ball()
+            self.add_ball(self.pressed_position)
+
+        return True
+    
+    # Collision handler for both manually and automated
+    def manage_collisions(self, object_a, object_b, on_collision_func):
+        self.collision_handler = self.space.add_collision_handler(object_a, object_b)
+        self.collision_handler.data["surface"] = self.window
+        self.collision_handler.begin = on_collision_func
+    
+    # Automated        
     def throw_ball_back_event(self):
         if not self.ball:
             return
         
-        self.manage_collisions(0, 0)
-        
-        if self.already_collided:
+        self.manage_collisions(0, 0, self.on_collision)
+        # print(self.collision_detected_at_frame, self.throw_time, self.frame_id)
+        if (
+            self.already_collided 
+            and self.collision_detected_at_frame + self.throw_time == self.frame_id  # wait random time before throwing
+        ):
+            print('Throwing back')
             ball_position = self.ball.body.position
             if self.ball_spawned_at_actor is self.actor1:
-                opposite_actor_position = self.actor2.body.position
-            else:
                 opposite_actor_position = self.actor1.body.position
-            self.apply_impulse_at_random_angle(ball_position, opposite_actor_position)
+            else:
+                opposite_actor_position = self.actor2.body.position
+            self.apply_impulse_at_random_angle(ball_position, opposite_actor_position, throw_back=True)
     
-    def manage_collisions(self, object_a, object_b):
-        self.collision_handler = self.space.add_collision_handler(object_a, object_b)
-        self.collision_handler.data["surface"] = self.window
-        self.collision_handler.begin = self.on_collision
-
     def on_collision(self, arbiter, space, data):
         if self.already_collided:
             return True
-        self.already_collided = True
-        print("Collision")
-        if self.ball:
-            self.pressed_position = self.ball.body.position
-            self.remove_ball()
-            self.ball = self.create_ball(15, 10, self.pressed_position)
-
+        
+        if not self.ball:
+            return True
+        
+        if self.frame_id > 25:
+            print("Collision")
+            self.collision_detected_at_frame = self.frame_id
+            self.already_collided = True
+         
+        last_ball_position = self.ball.body.position
+        self.remove_ball()
+        self.add_ball(last_ball_position)
+            
         return True
-    
+        
     ######################################################################################
     # Main loop fuctionality
     ######################################################################################
@@ -307,21 +338,30 @@ class Interaction():
                 # self.transition_to_next_trial()
                 self.recording = True
                 self.data = []
-
-        # Interactions events:
-        event_sequence = {
+            
+            # interaction events with keyboard presses    
+            if not automated:
+                event_sequence = {
+                'A': [self.throw_ball_event_manually],
+                'B': [self.throw_ball_event_manually],
+                'C': [self.throw_ball_event_manually, self.throw_ball_back_event_manually],
+                'D': [self.throw_ball_event_manually, self.jumping_event_manually]
+                }
+                
+                for func in event_sequence[interaction]:
+                    func(event)
+                    
+        # Automated interaction events:
+        if automated:
+            event_sequence = {
             'A': [self.throw_ball_event],
             'B': [self.throw_ball_event],
             'C': [self.throw_ball_event, self.throw_ball_back_event],
             'D': [self.throw_ball_event, self.jumping_event]
-        }
-        
-        if automated:
+            }
+             
             for func in event_sequence[interaction]:
                 func()
-        else:
-            for func in event_sequence[interaction]:
-                func(event)
                 
     def draw(self):
         self.window.fill("white")
@@ -364,6 +404,9 @@ class Interaction():
         self.add_ball_at_random_actor()
         self.next_trial += 1
         self.already_jumped = False
+        self.already_collided = False
+        self.already_thrown = False
+        self.throw_time = np.random.randint(15, 40)
             
     def process_finished_recording(self):
         
