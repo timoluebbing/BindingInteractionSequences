@@ -9,7 +9,7 @@ import numpy as np
 
 class Interaction():
     
-    def __init__(self, width, height, fps, max_frames, num_trials=200):
+    def __init__(self, width, height, fps, max_frames, num_trials=300):
         
         pygame.init()
         self.window = pygame.display.set_mode((width, height))
@@ -36,6 +36,7 @@ class Interaction():
         self.create_boundaries()
         
         # Actors
+        self.actor_weight = 70
         self.init_random_actor_positions(num_sequences=num_trials, seed=None)
         self.actor1, self.actor2 = None, None # self.create_actors()
         self.add_actors()
@@ -88,12 +89,11 @@ class Interaction():
         self.ball = self.create_ball(radius=15, mass=10, position=position)
         
     def add_ball_at_random_actor(self):
-        print('One ball has spawned')
         actor1_x = self.actor1_positions[self.current_trial]
         actor2_x = self.actor2_positions[self.current_trial]
 
         ball_spawn_choice = np.random.uniform(0, 1)
-        ball_spawn_height = np.random.uniform(0.8, 1.2)
+        ball_spawn_height = np.random.uniform(0.75, 0.95)
 
         ball_x = None
         ball_y = self.height - self.actor_height * ball_spawn_height
@@ -115,8 +115,8 @@ class Interaction():
         self.actor_width = 25
         self.actor_height = 100
         rects = [                            # +10 to account for boundaries
-            [(pos_a, self.height - self.actor_height+10), (self.actor_width, self.actor_height), WHITE, 200],
-            [(pos_b, self.height - self.actor_height+10), (self.actor_width, self.actor_height), WHITE, 200],
+            [(pos_a, self.height - self.actor_height+10), (self.actor_width, self.actor_height), WHITE, self.actor_weight],
+            [(pos_b, self.height - self.actor_height+10), (self.actor_width, self.actor_height), WHITE, self.actor_weight],
         ]
         actors = []
         
@@ -165,16 +165,17 @@ class Interaction():
     
     # Automated throw
     def apply_impulse_at_random_angle(self, ball_position, actor_position, throw_back=False):
+        # Custom 'random' angle for throwing in both directions + backthrowing
         if (
             throw_back
             and self.ball_spawned_at_actor is self.actor1
             or not throw_back
             and self.ball_spawned_at_actor is self.actor2
         ):
-            random_param = np.random.uniform( -0.2, 0.35)
+            random_param = np.random.uniform( -0.05, 0.28)
             angle = 7*math.pi / 6 + random_param
         else:
-            random_param = np.random.uniform( -0.35, 0.2)
+            random_param = np.random.uniform( -0.28, 0.05)
             angle = 11*math.pi / 6 + random_param
             
         force_scale = 100
@@ -335,7 +336,6 @@ class Interaction():
             # Start recording the trial with keyboard press (s)
             if event.type == pygame.KEYDOWN and event.key == pygame.K_s and self.recording == False:
                 print(f"Recording trial {self.current_trial}...")
-                # self.transition_to_next_trial()
                 self.recording = True
                 self.data = []
             
@@ -407,6 +407,11 @@ class Interaction():
         self.already_collided = False
         self.already_thrown = False
         self.throw_time = np.random.randint(15, 40)
+        
+        # Next trial starts without key press
+        print(f"Recording trial {self.current_trial}...")
+        self.recording = True
+        self.data = []
             
     def process_finished_recording(self):
         
@@ -459,7 +464,7 @@ class Interaction():
             # ...
             }
         header = headers[self.interaction]
-        filename = f"Data_Preparation/Interactions/{self.interaction}/interaction_{self.interaction}_trial_{self.current_trial}_temp.csv"
+        filename = f"Data_Preparation/Interactions/{self.interaction}/interaction_{self.interaction}_trial_{self.current_trial}.csv"
         
         print(f"Exporting data to:\n {filename}")
         
@@ -479,11 +484,11 @@ def main(interaction='A'):
     FPS = 30
     MAX_FRAMES = 201
     WIDTH, HEIGHT = 1000, 800
-    NUM_TRIALS = 200
+    NUM_TRIALS = 300
     
     simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES, NUM_TRIALS)
 
     simulation.run(interaction, automated=True)
 
 if __name__ == "__main__":
-    main('C') 
+    main('B') 

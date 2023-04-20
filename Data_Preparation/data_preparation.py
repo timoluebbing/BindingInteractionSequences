@@ -16,6 +16,7 @@ class Preprocessor():
         self.num_dimensions = num_dimensions
         
         self.nxm = False
+        self.use_distances = False
         # ...
     
     def set_num_features(self, num_features):
@@ -23,26 +24,6 @@ class Preprocessor():
     
     def set_num_dimensions(self, num_dimensions):
         self.num_dimensions = num_dimensions
-        
-    def compile_data_csv_to_pt(self, csv_path, pt_path):
-        
-        input_dataframe = pd.read_csv(csv_path)
-        input_dataframe.drop(columns='frame', inplace=True)
-        
-        self.dataframe = self.add_features_to_interaction_dataframe(input_dataframe)
-        
-        # Update the number of features
-        self.num_features = len(self.dataframe.columns)
-        
-        # Pandas dataframe to torch Tensor
-        tensor_data = torch.Tensor(self.dataframe.values)
-        
-        print(f"Tensor data shape: {tensor_data.shape}")
-        print(f"Tensor data dtype: {tensor_data.dtype}")
-        print(f"Tensor data device: {tensor_data.device}")
-
-        torch.save(tensor_data, pt_path)
-        
     
     def add_features_to_interaction_dataframe(self, df):
         
@@ -75,6 +56,56 @@ class Preprocessor():
         
         return df
     
+    def compile_data_csv_to_pt(self, csv_path, pt_path):
+        
+        input_dataframe = pd.read_csv(csv_path)
+        input_dataframe.drop(columns='frame', inplace=True)
+        
+        self.dataframe = self.add_features_to_interaction_dataframe(input_dataframe)
+        
+        # Update the number of features
+        self.num_features = len(self.dataframe.columns)
+        
+        # Pandas dataframe to torch Tensor
+        tensor_data = torch.Tensor(self.dataframe.values)
+        
+        print(f"Tensor data shape: {tensor_data.shape}")
+        print(f"Tensor data dtype: {tensor_data.dtype}")
+        print(f"Tensor data device: {tensor_data.device}")
+
+        torch.save(tensor_data, pt_path)
+    
+    def get_csv_paths(self, number_of_files, interaction='A'):
+        
+        return [
+            f"Data_Preparation/Interactions/C/interaction_{interaction}_trial_{csv_id}_temp.csv"
+            for csv_id in range(number_of_files)
+        ]
+      
+    def concat_csv_files(self, number_of_files, output_path, interaction='A'):
+        
+        csv_paths = self.get_csv_paths(number_of_files, interaction=interaction)
+        
+        df_list = []
+        for i, path in enumerate(csv_paths):
+            df = pd.read_csv(path)
+            df.insert(0, 'video_id', i)
+            df_list.append(df)
+        
+        df_concat = pd.concat(df_list)
+        df_concat.to_csv(output_path, index=False)
+    
+    
+    def compile_csv_concat_to_pt(self, csv_path, output_path, interaction='A'):
+        dataframe = pd.read_csv(csv_path)
+        # TODO: finish function
+    
+    def reshape_tensor_data(self, input_data):
+        pass
+        # Reshape tensor data to (num_frames, num_features, num_dimensions)
+        # TODO: finish function
+    
+    # TODO: adapt to my data or change structure of my data
     def std_scale_data(self, input_data, scale_factor):
         # Apply normalization to input data
         normed = torch.norm(input_data, dim=2) # funk nicht, input data hat nicht das richtige Format
@@ -90,11 +121,12 @@ class Preprocessor():
         print(f'New maximum: {torch.max(scaled)}')
         return scaled
     
+    # TODO: adapt to my data or change structure of my data
     def add_noise(self, input_data, noise_factor):
         noise = noise_factor * (torch.rand(input_data.shape) - 0.5)
         return input_data + noise
 
-
+    # TODO: adapt to my data or change structure of my data
     # Das ist doch für active tuning oder?
     # tw steht für train window. das ist aber nicht gleich batchsize oder
     def create_inout_sequences(self, input_data, tw):
@@ -106,9 +138,29 @@ class Preprocessor():
             inout_seq.append([train_seq ,train_label])
         return inout_seq
 
+
+    def get_LSTM_data_interaction(self, path, distances=False):
+        
+        self.use_distances = distances
+        
+        visual_input = torch.load(path)
+        
+        if not self.use_distances:
+            # Einfach returnen weil die Data ja zur Zeit noch flattened sind
+            return visual_input
+            # visual_input = visual_input.reshape(
+            #     1, 
+            #     self._frame_samples, 
+            #     self.num_dimensions * self.num_features
+            # )
+        
+        return visual_input[:, : (self.num_dimensions * self.num_features)]
+        
+    
     """
         Get LSTM data for interaction sequence. 
     """
+    # TODO: adapt to my data or change structure of my data
     def get_LSTM_data_interaction(
         self, 
         path, 
@@ -141,14 +193,12 @@ class Preprocessor():
 
         return train_inout_seq, train_data, test_data
 
+def main(interaction = 'C'):
 
-def main():
-
-    interaction = 'B'
     path = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
     save_to_path = f"Data_Preparation/Interactions/interaction_{interaction}.pt"
     
-    prepro = Preprocessor(num_features=12, num_dimensions=4) # wozu zählen die distanzen?
+    prepro = Preprocessor(num_features=3, num_dimensions=4) # wozu zählen die distanzen?
     
     prepro.compile_data_csv_to_pt(path, save_to_path)    
     
@@ -157,9 +207,13 @@ def main():
     
     tensor = torch.load(save_to_path)
     print(tensor.shape)
+    print(tensor[:2, :12])
     
     # scaled = prepro.std_scale_data(tensor, scale_factor=1)
     # print(scaled[1,:])
+    
+    output_path=f"Data_Preparation/Interactions/interaction_{interaction}_concat.csv"
+    # prepro.concat_csv_files(number_of_files=5, output_path=output_path, interaction=interaction)
 
 if __name__ == '__main__':
     main()

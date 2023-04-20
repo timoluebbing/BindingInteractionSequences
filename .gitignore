@@ -1,4 +1,7 @@
-/Data_Preparation/Interactions/interaction_A.csv
+/Data_Preparation/Interactions/A/
+/Data_Preparation/Interactions/B/
+/Data_Preparation/Interactions/C/
+/Data_Preparation/Interactions/D/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

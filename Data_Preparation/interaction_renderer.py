@@ -70,10 +70,11 @@ class Interaction_Renderer():
 def main(interaction='A'):
     
     path = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
+    path2 = f"Data_Preparation/Interactions/C/interaction_{interaction}_trial_1_temp.csv"
 
-    renderer = Interaction_Renderer(path, interaction)
+    renderer = Interaction_Renderer(path2, interaction)
 
     renderer.render()
     
 if __name__ == "__main__":
-    main('C1')
+    main('C')
