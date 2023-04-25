@@ -120,15 +120,11 @@ class Preprocessor():
         print(f'New minimum: {torch.min(scaled)}')
         print(f'New maximum: {torch.max(scaled)}')
         return scaled
-    
-    # TODO: adapt to my data or change structure of my data
-    def add_noise(self, input_data, noise_factor):
-        noise = noise_factor * (torch.rand(input_data.shape) - 0.5)
-        return input_data + noise
 
     # TODO: adapt to my data or change structure of my data
-    # Das ist doch für active tuning oder?
-    # tw steht für train window. das ist aber nicht gleich batchsize oder
+    # tw steht für train window. das ist aber nicht gleich batchsize oder, nein :)
+    # Liste aus train sequences zum Beispiel: [0 - 9] mit label 10, dann [1 - 10] mit label 11 usw
+    ### windows brauchen wir nicht, mal schauen
     def create_inout_sequences(self, input_data, tw):
         inout_seq = []
         L = len(input_data)
@@ -138,24 +134,23 @@ class Preprocessor():
             inout_seq.append([train_seq ,train_label])
         return inout_seq
 
-
-    def get_LSTM_data_interaction(self, path, distances=False):
+    def get_LSTM_data_interaction(self, path, tw, distances=False):
         
         self.use_distances = distances
         
         visual_input = torch.load(path)
         
-        if not self.use_distances:
+        if self.use_distances:
             # Einfach returnen weil die Data ja zur Zeit noch flattened sind
-            return visual_input
+            return self.create_inout_sequences(visual_input, tw)
             # visual_input = visual_input.reshape(
             #     1, 
             #     self._frame_samples, 
             #     self.num_dimensions * self.num_features
             # )
+        without_dis = visual_input[:, : (self.num_dimensions * self.num_features)]
         
-        return visual_input[:, : (self.num_dimensions * self.num_features)]
-        
+        return self.create_inout_sequences(without_dis, tw)
     
     """
         Get LSTM data for interaction sequence. 
@@ -173,10 +168,6 @@ class Preprocessor():
         visual_input = torch.load(path)  
 
         print(f"====================\n After load:\n {visual_input.size} \n ====================")
-
-        if noise is not None: 
-            visual_input = self.add_noise(visual_input, noise) 
-
             
         visual_input = visual_input.reshape(
             1, 
@@ -186,6 +177,7 @@ class Preprocessor():
         
         print(f"====================\n After reshape\n{visual_input.size} \n ====================")
         
+        # Beim dancer ändeers sich die motion nicht, also daten einfach aufgeteilt
         train_data = visual_input[:,:-num_test_data,:]
         test_data = visual_input[:,-num_test_data:,:]
 

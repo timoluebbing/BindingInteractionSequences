@@ -9,7 +9,7 @@ import numpy as np
 
 class Interaction():
     
-    def __init__(self, width, height, fps, max_frames, num_trials=300):
+    def __init__(self, width, height, fps, max_frames, num_trials=300, interaction='A'):
         
         pygame.init()
         self.window = pygame.display.set_mode((width, height))
@@ -21,6 +21,7 @@ class Interaction():
         self.dt = 1 / self.fps
         self.max_frames = max_frames
 
+        self.interaction = interaction
         self.num_trials = num_trials
         self.current_trial = 0
         self.next_trial = self.current_trial + 1
@@ -36,7 +37,8 @@ class Interaction():
         self.create_boundaries()
         
         # Actors
-        self.actor_weight = 70
+        actor_weights_by_interaction = {'A': 260, 'B':80, 'C':270, 'D':200}
+        self.actor_weight = actor_weights_by_interaction[self.interaction]
         self.init_random_actor_positions(num_sequences=num_trials, seed=None)
         self.actor1, self.actor2 = None, None # self.create_actors()
         self.add_actors()
@@ -93,7 +95,7 @@ class Interaction():
         actor2_x = self.actor2_positions[self.current_trial]
 
         ball_spawn_choice = np.random.uniform(0, 1)
-        ball_spawn_height = np.random.uniform(0.75, 0.95)
+        ball_spawn_height = np.random.uniform(0.75, 0.9)
 
         ball_x = None
         ball_y = self.height - self.actor_height * ball_spawn_height
@@ -110,7 +112,7 @@ class Interaction():
         self.space.remove(self.ball, self.ball.body)      
         self.ball = None
 
-    def create_actors(self, pos_a, pos_b, interaction='A'):
+    def create_actors(self, pos_a, pos_b):
         WHITE = (255, 255, 255, 100)
         self.actor_width = 25
         self.actor_height = 100
@@ -166,16 +168,19 @@ class Interaction():
     # Automated throw
     def apply_impulse_at_random_angle(self, ball_position, actor_position, throw_back=False):
         # Custom 'random' angle for throwing in both directions + backthrowing
+        ranges = {'A': (-0.2, 0.28), 'B': (0.05, 0.28), 'C': (-0.1, 0.2), 'D': (-0.2, 0.2)}
+        rng = ranges[self.interaction]
+        
         if (
             throw_back
             and self.ball_spawned_at_actor is self.actor1
             or not throw_back
             and self.ball_spawned_at_actor is self.actor2
         ):
-            random_param = np.random.uniform( -0.05, 0.28)
+            random_param = np.random.uniform( rng[0], rng[1])
             angle = 7*math.pi / 6 + random_param
         else:
-            random_param = np.random.uniform( -0.28, 0.05)
+            random_param = np.random.uniform( -rng[1], -rng[0])
             angle = 11*math.pi / 6 + random_param
             
         force_scale = 100
@@ -205,7 +210,7 @@ class Interaction():
             distance_ball_actor = calculate_eucl_dis(ball_position, actor2_position)
             distance_actor_actor = calculate_eucl_dis(actor1_position, actor2_position)
             
-            if math.isclose(distance_ball_actor, distance_actor_actor / 2, abs_tol=10) and not self.already_jumped:
+            if math.isclose(distance_ball_actor, distance_actor_actor / 2, abs_tol=12) and not self.already_jumped:
                 opposite_actor.body.body_type = pymunk.Body.DYNAMIC
                 opposite_actor.body.apply_impulse_at_local_point((0, -100000), (0,0))
                 self.already_jumped = True
@@ -323,7 +328,7 @@ class Interaction():
     ######################################################################################
     # Main loop fuctionality
     ######################################################################################
-    def event_handler(self, interaction='A', automated=True):
+    def event_handler(self, automated=True):
                 
         for event in pygame.event.get():
             # Close window
@@ -348,7 +353,7 @@ class Interaction():
                 'D': [self.throw_ball_event_manually, self.jumping_event_manually]
                 }
                 
-                for func in event_sequence[interaction]:
+                for func in event_sequence[self.interaction]:
                     func(event)
                     
         # Automated interaction events:
@@ -360,7 +365,7 @@ class Interaction():
             'D': [self.throw_ball_event, self.jumping_event]
             }
              
-            for func in event_sequence[interaction]:
+            for func in event_sequence[self.interaction]:
                 func()
                 
     def draw(self):
@@ -369,9 +374,7 @@ class Interaction():
         self.space.debug_draw(self.draw_options)
         pygame.display.update()
         
-    def run(self, interaction='A', automated=True):   
-        
-        self.interaction = interaction
+    def run(self, automated=True):   
         
         while self.is_running:
             
@@ -380,7 +383,7 @@ class Interaction():
                 print("All trials are finished and recorded :)")
                 break
             
-            self.event_handler(interaction, automated)
+            self.event_handler(automated)
             self.draw()
             
             if self.recording:
@@ -486,9 +489,9 @@ def main(interaction='A'):
     WIDTH, HEIGHT = 1000, 800
     NUM_TRIALS = 300
     
-    simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES, NUM_TRIALS)
+    simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES, NUM_TRIALS, interaction)
 
-    simulation.run(interaction, automated=True)
+    simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('B') 
+    main('D') 
