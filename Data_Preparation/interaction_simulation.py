@@ -324,7 +324,13 @@ class Interaction():
         self.add_ball(last_ball_position)
             
         return True
-        
+    
+    def print_arbiter(self, arbiter):
+        if arbiter.shapes[1] not in [self.actor1, self.actor2]:
+            return
+        print(f"Arbiter shapes: {arbiter.shapes}")
+        print(arbiter.total_impulse, arbiter.total_ke)
+    
     ######################################################################################
     # Main loop fuctionality
     ######################################################################################
@@ -391,6 +397,9 @@ class Interaction():
             if self.current_trial == self.next_trial:
                 self.transition_to_next_trial()
             
+            # if self.ball:
+            #     self.ball.body.each_arbiter(self.print_arbiter)
+            
             self.space.step(self.dt)
             self.clock.tick(self.fps)
 
@@ -446,25 +455,57 @@ class Interaction():
     ######################################################################################
     # Functionality for extracting data from each simulation
     ######################################################################################
+    def get_arbiter_data(self, arbiter):
+        if arbiter.shapes[1] not in [self.actor1, self.actor2, self.ball]:
+            self.ti, self.ke = None, None
+            return
+        self.ti, self.ke = arbiter.total_impulse, arbiter.total_ke
+    
+    def get_collision_forces(self, shape):
+        try:
+            shape.body.each_arbiter(self.get_arbiter_data)
+            if self.ke is not None and self.ke > 0:
+                print("recording collision forces")
+                total_impulse_x, total_impulse_y = self.ti
+                print(shape, total_impulse_x, total_impulse_y, self.ke)
+                return total_impulse_x, total_impulse_y, self.ke
+        except Exception:
+            return 0.0, 0.0, 0.0
+    
     def export_data_for_one_time_step(self):
         shapes = self.space.shapes[4:] # Exclude boundary shapes
-        body_pos_angle_list = [
-            (shape.body.position, shape.body.angle) for shape in shapes
+        body_data_list = [
+            (shape.body.position, 
+             shape.body.angle,
+             self.get_collision_forces(shape),
+             shape.body.velocity,
+             shape.body.mass) for shape in shapes
             ]
         data = [
-            [pos.x, pos.y, angle] for (pos, angle) in body_pos_angle_list
+            [pos.x, 
+             pos.y, 
+             angle,
+             forces[0] if forces is not None else 0.0,
+             forces[1] if forces is not None else 0.0,
+             forces[2] if forces is not None else 0.0,
+             velocity.x,
+             velocity.y,
+             mass] for (pos, angle, forces, velocity, mass) in body_data_list
             ]
         flat_data = [x for xs in data for x in xs]
         flat_data.insert(0, self.frame_id)
         return flat_data
 
-    def export_data_to_csv(self):        
+    def export_data_to_csv(self): 
+        head = ["frame", "actor1_x", "actor1_y", "actor1_o", "actor1_col_force_x", "actor1_col_force_y", "actor1_ke", "actor1_vel_x", "actor1_vel_y", "actor1_mass",
+                         "actor2_x", "actor2_y", "actor2_o", "actor2_col_force_x", "actor2_col_force_y", "actor2_ke", "actor2_vel_x", "actor2_vel_y", "actor2_mass",
+                         "ball_x", "ball_y", "ball_o", "ball_col_force_x", "ball_col_force_y", "ball_ke", "ball_vel_x", "ball_vel_y", "ball_mass"]       
         headers = {
-            'A': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
-            'B': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
-            'C': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
-            'D': ["frame", "actor1_x", "actor1_y", "actor1_o", "actor2_x", "actor2_y", "actor2_o", "ball_x", "ball_y", "ball_o"],
-            # ...
+            'A': head,
+            'B': head,
+            'C': head,
+            'D': head,
+            # ... maybe diffenent with different objects
             }
         header = headers[self.interaction]
         filename = f"Data_Preparation/Interactions/{self.interaction}/interaction_{self.interaction}_trial_{self.current_trial}.csv"
@@ -494,4 +535,4 @@ def main(interaction='A'):
     simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('D') 
+    main('A') 

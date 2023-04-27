@@ -1,7 +1,12 @@
 # To Do List
 
+## Notizen
+- property body.force ist immer ein Nullvektor
+- property body.moment ist eine Konstante -> kein Informationsgehalt über Zeit
+- 
+
 ## Bis zum nächten Meeting
-- [ ] Distancen normalisieren, (wie?)
+- [ ] Distancen normalisieren, (wie?, z.B. auf [0, 1])
 - [ ] Positionen normalisieren, z.B. zu einer unteren Ecke
 - [ ] weitere Properties aufzeichnen, mass, moment, velocity, ...
 - [ ] collision force, siehe arbiter class
