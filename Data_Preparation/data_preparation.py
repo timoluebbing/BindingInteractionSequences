@@ -1,7 +1,13 @@
+import contextlib
 import pandas as pd
 import torch
 import numpy as np
 import math
+import sys
+
+laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
+sys.path.append(laptop_dir)
+import Data_Preparation.interaction_simulation as sim
 
 
 class Preprocessor():
@@ -25,41 +31,87 @@ class Preprocessor():
     def set_num_dimensions(self, num_dimensions):
         self.num_dimensions = num_dimensions
     
+    def load_dataframe(self, csv_path):
+        df = pd.read_csv(csv_path)
+        with contextlib.suppress(Exception):
+            df.drop(columns='frame', inplace=True)
+        return df
+    
+    def load_concat_dataframe(self, df_concat_path):
+        df_concat = self.load_dataframe(df_concat_path)
+        df_list = []
+        
+        for i in range(df_concat['csv_id'].max()):
+            df = df_concat[df_concat['csv_id'] == i]
+            df_list.append(df)
+        
+        return pd.concat(df_list, keys='csv_id' , axis=1)
+    
     def add_features_to_interaction_dataframe(self, df):
         
-        def cal_dis(x1, y1, x2, y2):
-                return math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
-            
-        # Add distances to dataframe
-        df['dis_act1_act2'] = df.apply(
-            lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['actor2_x'], row['actor2_y']), 
-            axis=1)
-        df['dis_act1_ball'] = df.apply(
-            lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['ball_x'], row['ball_y']), 
-            axis=1)
-        df['dis_act2_ball'] = df.apply(
-            lambda row: cal_dis(row['actor2_x'], row['actor2_y'], row['ball_x'], row['ball_y']), 
-            axis=1)
-
-        # Convert radient to sin(radient)
-        df[['actor1_o_sin', 'actor2_o_sin', 'ball_o_sin']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.sin)
-        df[['actor1_o_cos', 'actor2_o_cos', 'ball_o_cos']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.cos)
+        df = self.add_distances_to_dataframe(df)
         
-        df.drop(columns=['actor1_o', 'actor2_o', 'ball_o'], inplace=True)
+        df = self.normalize_coordinates_dataframe(df)  # , norm_to_center=True)
+
+        df = self.convert_orientation_dataframe(df)
         
         # Reindex columns to correct input ordering
         columns = ['actor1_x', 'actor1_y', 'actor1_o_sin', 'actor1_o_cos', 
                    'actor2_x', 'actor2_y', 'actor2_o_sin', 'actor2_o_cos',
                    'ball_x', 'ball_y', 'ball_o_sin', 'ball_o_cos',
                    'dis_act1_act2', 'dis_act1_ball', 'dis_act2_ball']
-        df = df.reindex(columns=columns)
+        df = df[columns]  # instead of dropping all the other columns
         
+        return df.reindex(columns=columns)
+    
+    def add_distances_to_dataframe(self, df):
+        def cal_dis(x1, y1, x2, y2):
+                return math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+            
+        # Add distances to dataframe (min max normalized to [0-1])
+        df['dis_act1_act2'] = df.apply(
+            lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['actor2_x'], row['actor2_y']), 
+            axis=1)
+        df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
+        df['dis_act1_ball'] = df.apply(
+            lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['ball_x'], row['ball_y']), 
+            axis=1)
+        df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
+        df['dis_act2_ball'] = df.apply(
+            lambda row: cal_dis(row['actor2_x'], row['actor2_y'], row['ball_x'], row['ball_y']), 
+            axis=1)
+        df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
+
+        return df
+    
+    def normalize_coordinates_dataframe(self, df, norm_to_center=False):
+        window_height = sim.HEIGHT
+        window_width = sim.WIDTH
+        
+        center_x = window_width / 2
+        center_y = window_height - 10 # account for boundaries
+        
+        if norm_to_center:
+            # Normalize coordinates to bottom center of window between actors
+            df[['actor1_x', 'actor2_x', 'ball_x']] = df[['actor1_x', 'actor2_x', 'ball_x']] - center_x
+            df[['actor1_y', 'actor2_y', 'ball_y']] = df[['actor1_y', 'actor2_y', 'ball_y']] - center_y # Das macht irgendwie noch keinen Sinn
+        else: 
+            # Normalize coordinates to [0-1] by window width and height
+            df[['actor1_x', 'actor2_x', 'ball_x']] = df[['actor1_x', 'actor2_x', 'ball_x']] / window_width
+            df[['actor1_y', 'actor2_y', 'ball_y']] = df[['actor1_y', 'actor2_y', 'ball_y']] / window_height
+        
+        return df
+    
+    def convert_orientation_dataframe(self, df): 
+        # Convert radient to sin(radient)
+        df[['actor1_o_sin', 'actor2_o_sin', 'ball_o_sin']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.sin)
+        df[['actor1_o_cos', 'actor2_o_cos', 'ball_o_cos']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.cos)
+
         return df
     
     def compile_data_csv_to_pt(self, csv_path, pt_path):
         
-        input_dataframe = pd.read_csv(csv_path)
-        input_dataframe.drop(columns='frame', inplace=True)
+        input_dataframe = self.load_dataframe(csv_path)
         
         self.dataframe = self.add_features_to_interaction_dataframe(input_dataframe)
         
@@ -78,8 +130,8 @@ class Preprocessor():
     def get_csv_paths(self, number_of_files, interaction='A'):
         
         return [
-            f"Data_Preparation/Interactions/C/interaction_{interaction}_trial_{csv_id}_temp.csv"
-            for csv_id in range(number_of_files)
+            f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_{csv_id}.csv"
+            for csv_id in range(number_of_files) - 1
         ]
       
     def concat_csv_files(self, number_of_files, output_path, interaction='A'):
@@ -89,6 +141,8 @@ class Preprocessor():
         df_list = []
         for i, path in enumerate(csv_paths):
             df = pd.read_csv(path)
+            df = self.add_features_to_interaction_dataframe(df)
+            
             df.insert(0, 'video_id', i)
             df_list.append(df)
         
@@ -104,36 +158,25 @@ class Preprocessor():
         pass
         # Reshape tensor data to (num_frames, num_features, num_dimensions)
         # TODO: finish function
-    
-    # TODO: adapt to my data or change structure of my data
-    def std_scale_data(self, input_data, scale_factor):
-        # Apply normalization to input data
-        normed = torch.norm(input_data, dim=2) # funk nicht, input data hat nicht das richtige Format
-        
-        scale_factor = 1/(np.sqrt(scale_factor) * normed.std())
-        scale_mat = torch.Tensor([[scale_factor, 0, 0], 
-                                  [0, scale_factor, 0], 
-                                  [0, 0, scale_factor]])
-        scaled = torch.matmul(input_data, scale_mat)
-        
-        print(f'Scaled data by factor {scale_factor}')
-        print(f'New minimum: {torch.min(scaled)}')
-        print(f'New maximum: {torch.max(scaled)}')
-        return scaled
 
     # TODO: adapt to my data or change structure of my data
     # tw steht für train window. das ist aber nicht gleich batchsize oder, nein :)
     # Liste aus train sequences zum Beispiel: [0 - 9] mit label 10, dann [1 - 10] mit label 11 usw
     ### windows brauchen wir nicht, mal schauen
-    def create_inout_sequences(self, input_data, tw):
-        inout_seq = []
-        L = len(input_data)
-        for i in range(L-tw):
-            train_seq = input_data[i:i+tw]
-            train_label = input_data[i+tw:i+tw+1]
-            inout_seq.append([train_seq ,train_label])
-        return inout_seq
+    # def create_inout_sequences(self, input_data, tw):
+    #     inout_seq = []
+    #     L = len(input_data)
+    #     for i in range(L-tw):
+    #         train_seq = input_data[i:i+tw]
+    #         train_label = input_data[i+tw:i+tw+1]
+    #         inout_seq.append([train_seq ,train_label])
+    #     return inout_seq
 
+    def create_inout_sequence_interaction(self, input_data):
+        seq = input_data[:-1]
+        label = input_data[1:]
+        return seq, label
+    
     def get_LSTM_data_interaction(self, path, tw, distances=False):
         
         self.use_distances = distances
@@ -185,27 +228,40 @@ class Preprocessor():
 
         return train_inout_seq, train_data, test_data
 
-def main(interaction = 'C'):
+def main(interaction = 'A'):
 
-    path = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
     save_to_path = f"Data_Preparation/Interactions/interaction_{interaction}.pt"
+    path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
+    path_concat = "Data_Preparation/Interactions/interaction_C_concat.csv"
     
     prepro = Preprocessor(num_features=3, num_dimensions=4) # wozu zählen die distanzen?
     
     prepro.compile_data_csv_to_pt(path, save_to_path)    
     
     print(prepro.dataframe.shape)
-    print(prepro.dataframe.tail(30))
+    print(prepro.dataframe.tail(10))
+    print(prepro.dataframe.head(10))
     
     tensor = torch.load(save_to_path)
     print(tensor.shape)
     print(tensor[:2, :12])
     
+    # data = prepro.load_concat_dataframe(path_concat)
+    # print(data.shape)
+    # print(data.head)
+    
+    
     # scaled = prepro.std_scale_data(tensor, scale_factor=1)
     # print(scaled[1,:])
     
     output_path=f"Data_Preparation/Interactions/interaction_{interaction}_concat.csv"
-    # prepro.concat_csv_files(number_of_files=5, output_path=output_path, interaction=interaction)
+    #prepro.concat_csv_files(number_of_files=300, output_path=output_path, interaction=interaction)
 
+    df = prepro.load_dataframe(output_path)
+    print(df.shape)
+    print(df.head(40))
+    print(df.info())
+    
+    
 if __name__ == '__main__':
     main()

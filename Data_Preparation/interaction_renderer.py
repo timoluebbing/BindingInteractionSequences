@@ -9,7 +9,7 @@ class Interaction_Renderer():
         self.fps = 30
         self.max_fps = 201
         self.width = 1000
-        self.height = 800
+        self.height = 500
         self.black, self.white, self.red = (0, 0, 0), (255, 255, 255), (255, 0, 0)
         self.df = pd.read_csv(path, sep=',')
         self.interaction = interaction
@@ -17,9 +17,9 @@ class Interaction_Renderer():
     def load_positions_at_frame_t(self, frame):
         row = self.df.iloc[frame]
         coordinates = row.values[1::]                    # remove frame
-        xs = coordinates[::3]
-        ys = coordinates[1::3]
-        os = coordinates[2::3]
+        xs = coordinates[::9]                            # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
+        ys = coordinates[1::9]
+        os = coordinates[2::9]
         return xs, ys, os
     
     def draw(self, frame):
@@ -70,11 +70,11 @@ class Interaction_Renderer():
 def main(interaction='A'):
     
     path = f"Data_Preparation/Interactions/interaction_{interaction}.csv"
-    path2 = f"Data_Preparation/Interactions/C/interaction_{interaction}_trial_1.csv"
+    path2 = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
 
     renderer = Interaction_Renderer(path2, interaction)
 
     renderer.render()
     
 if __name__ == "__main__":
-    main('C')
+    main('A')

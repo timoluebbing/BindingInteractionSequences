@@ -6,6 +6,10 @@ import math
 import random
 import numpy as np
 
+FPS = 30
+MAX_FRAMES = 201
+WIDTH, HEIGHT = 1000, 500
+NUM_TRIALS = 300
 
 class Interaction():
     
@@ -168,7 +172,7 @@ class Interaction():
     # Automated throw
     def apply_impulse_at_random_angle(self, ball_position, actor_position, throw_back=False):
         # Custom 'random' angle for throwing in both directions + backthrowing
-        ranges = {'A': (-0.2, 0.28), 'B': (0.05, 0.28), 'C': (-0.1, 0.2), 'D': (-0.2, 0.2)}
+        ranges = {'A': (-0.2, 0.28), 'B': (0.1, 0.28), 'C': (-0.1, 0.2), 'D': (-0.2, 0.2)}
         rng = ranges[self.interaction]
         
         if (
@@ -525,14 +529,9 @@ def calculate_angle(p1, p2):
 
 def main(interaction='A'):
     
-    FPS = 30
-    MAX_FRAMES = 201
-    WIDTH, HEIGHT = 1000, 800
-    NUM_TRIALS = 300
-    
     simulation = Interaction(WIDTH, HEIGHT, FPS, MAX_FRAMES, NUM_TRIALS, interaction)
 
     simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('A') 
+    main('B') 
