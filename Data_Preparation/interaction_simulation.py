@@ -172,7 +172,7 @@ class Interaction():
     # Automated throw
     def apply_impulse_at_random_angle(self, ball_position, actor_position, throw_back=False):
         # Custom 'random' angle for throwing in both directions + backthrowing
-        ranges = {'A': (-0.2, 0.28), 'B': (0.1, 0.28), 'C': (-0.1, 0.2), 'D': (-0.2, 0.2)}
+        ranges = {'A': (-0.2, 0.28), 'B': (0.1, 0.28), 'C': (-0.05, 0.15), 'D': (-0.2, 0.2)}
         rng = ranges[self.interaction]
         
         if (
@@ -534,4 +534,4 @@ def main(interaction='A'):
     simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('B') 
+    main('D') 

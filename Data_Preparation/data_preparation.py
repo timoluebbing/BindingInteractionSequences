@@ -31,21 +31,16 @@ class Preprocessor():
     def set_num_dimensions(self, num_dimensions):
         self.num_dimensions = num_dimensions
     
+    
+    ################################################################
+    # Prepare raw interaction data and save 
+    # preprocessed data to concat file
+    ################################################################
     def load_dataframe(self, csv_path):
         df = pd.read_csv(csv_path)
         with contextlib.suppress(Exception):
             df.drop(columns='frame', inplace=True)
         return df
-    
-    def load_concat_dataframe(self, df_concat_path):
-        df_concat = self.load_dataframe(df_concat_path)
-        df_list = []
-        
-        for i in range(df_concat['csv_id'].max()):
-            df = df_concat[df_concat['csv_id'] == i]
-            df_list.append(df)
-        
-        return pd.concat(df_list, keys='csv_id' , axis=1)
     
     def add_features_to_interaction_dataframe(self, df):
         
@@ -72,15 +67,15 @@ class Preprocessor():
         df['dis_act1_act2'] = df.apply(
             lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['actor2_x'], row['actor2_y']), 
             axis=1)
-        df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
+        #df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
         df['dis_act1_ball'] = df.apply(
             lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['ball_x'], row['ball_y']), 
             axis=1)
-        df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
+        #df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
         df['dis_act2_ball'] = df.apply(
             lambda row: cal_dis(row['actor2_x'], row['actor2_y'], row['ball_x'], row['ball_y']), 
             axis=1)
-        df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
+        #df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
 
         return df
     
@@ -109,29 +104,11 @@ class Preprocessor():
 
         return df
     
-    def compile_data_csv_to_pt(self, csv_path, pt_path):
-        
-        input_dataframe = self.load_dataframe(csv_path)
-        
-        self.dataframe = self.add_features_to_interaction_dataframe(input_dataframe)
-        
-        # Update the number of features
-        self.num_features = len(self.dataframe.columns)
-        
-        # Pandas dataframe to torch Tensor
-        tensor_data = torch.Tensor(self.dataframe.values)
-        
-        print(f"Tensor data shape: {tensor_data.shape}")
-        print(f"Tensor data dtype: {tensor_data.dtype}")
-        print(f"Tensor data device: {tensor_data.device}")
-
-        torch.save(tensor_data, pt_path)
-    
     def get_csv_paths(self, number_of_files, interaction='A'):
         
         return [
             f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_{csv_id}.csv"
-            for csv_id in range(number_of_files) - 1
+            for csv_id in range(number_of_files - 1)
         ]
       
     def concat_csv_files(self, number_of_files, output_path, interaction='A'):
@@ -140,7 +117,8 @@ class Preprocessor():
         
         df_list = []
         for i, path in enumerate(csv_paths):
-            df = pd.read_csv(path)
+            df = pd.read_csv(path) 
+            
             df = self.add_features_to_interaction_dataframe(df)
             
             df.insert(0, 'video_id', i)
@@ -149,86 +127,79 @@ class Preprocessor():
         df_concat = pd.concat(df_list)
         df_concat.to_csv(output_path, index=False)
     
+    ################################################################
+    # Load and compile preprocessed data for lstm
+    ################################################################
+    def load_concat_dataframe(self, df_concat_path):
+        df_concat = self.load_dataframe(df_concat_path)
+        # return list of sequence dataframes
+        return [
+            df_concat[df_concat['video_id'] == i]
+            for i in range(df_concat['video_id'].max())
+        ]
     
-    def compile_csv_concat_to_pt(self, csv_path, output_path, interaction='A'):
-        dataframe = pd.read_csv(csv_path)
-        # TODO: finish function
+    def dataframes_to_tensor(self, df_list):
+        """ Retruns a stacked Tensor with all sequences for one interaction
+
+        Args:
+            df_list ([pd.Dataframe]): List of sequence dataframes
+
+        Returns:
+            torch.Tensor: Tensor of shape (num interactions, sequence_length, features)
+        
+        """        
+        tensor_list = [
+            self.dataframe_to_tensor(df)
+            for df in df_list
+        ]
+        
+        return torch.stack(tensor_list)
+            
     
-    def reshape_tensor_data(self, input_data):
-        pass
-        # Reshape tensor data to (num_frames, num_features, num_dimensions)
-        # TODO: finish function
+    def dataframe_to_tensor(self, df):
+        
+        with contextlib.suppress(Exception):
+            df.drop(columns='frame', inplace=True)
+        with contextlib.suppress(Exception):
+            df.drop(columns='video_id', inplace=True)
 
-    # TODO: adapt to my data or change structure of my data
-    # tw steht für train window. das ist aber nicht gleich batchsize oder, nein :)
-    # Liste aus train sequences zum Beispiel: [0 - 9] mit label 10, dann [1 - 10] mit label 11 usw
-    ### windows brauchen wir nicht, mal schauen
-    # def create_inout_sequences(self, input_data, tw):
-    #     inout_seq = []
-    #     L = len(input_data)
-    #     for i in range(L-tw):
-    #         train_seq = input_data[i:i+tw]
-    #         train_label = input_data[i+tw:i+tw+1]
-    #         inout_seq.append([train_seq ,train_label])
-    #     return inout_seq
+        return torch.Tensor(df.values)
+        
+    def create_inout_sequence(self, input_data):
+        """ Creates input and label sequences for a single interaction sequence
 
-    def create_inout_sequence_interaction(self, input_data):
+        Args:
+            input_data (torch.Tensor): Tensor of shape (sequence_length, features)
+
+        Returns:
+            tuple: Tuple of input and label sequence
+        """        
         seq = input_data[:-1]
         label = input_data[1:]
+        
         return seq, label
     
-    def get_LSTM_data_interaction(self, path, tw, distances=False):
-        
-        self.use_distances = distances
-        
-        visual_input = torch.load(path)
-        
-        if self.use_distances:
+    def get_LSTM_data_interaction(self, path, use_distances=False):
+        """ Returns interaction specific tensor data
+
+        Args:
+            path (str):                     Path to preprocessed csv data
+            use_distances (bool, optional): Flag to determine whether distances are considered as input
+
+        Returns:
+            torch.Tensor: Tensor of shape (num sequences, sequence_length, features)
+        """        
+        sequence_list = self.load_concat_dataframe(path)
+        tensor_list = self.dataframes_to_tensor(sequence_list)
+
+        if use_distances:
             # Einfach returnen weil die Data ja zur Zeit noch flattened sind
-            return self.create_inout_sequences(visual_input, tw)
-            # visual_input = visual_input.reshape(
-            #     1, 
-            #     self._frame_samples, 
-            #     self.num_dimensions * self.num_features
-            # )
-        without_dis = visual_input[:, : (self.num_dimensions * self.num_features)]
-        
-        return self.create_inout_sequences(without_dis, tw)
+            return tensor_list
+
+        return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
-    """
-        Get LSTM data for interaction sequence. 
-    """
-    # TODO: adapt to my data or change structure of my data
-    def get_LSTM_data_interaction(
-        self, 
-        path, 
-        frame_samples, 
-        num_test_data, 
-        train_window, 
-        noise=None
-    ):
 
-        visual_input = torch.load(path)  
-
-        print(f"====================\n After load:\n {visual_input.size} \n ====================")
-            
-        visual_input = visual_input.reshape(
-            1, 
-            frame_samples, 
-            (self._num_dimensions) *self.num_features
-        )
-        
-        print(f"====================\n After reshape\n{visual_input.size} \n ====================")
-        
-        # Beim dancer ändeers sich die motion nicht, also daten einfach aufgeteilt
-        train_data = visual_input[:,:-num_test_data,:]
-        test_data = visual_input[:,-num_test_data:,:]
-
-        train_inout_seq = self.create_inout_sequences(train_data[0], train_window)
-
-        return train_inout_seq, train_data, test_data
-
-def main(interaction = 'A'):
+def main(interaction = 'D'):
 
     save_to_path = f"Data_Preparation/Interactions/interaction_{interaction}.pt"
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
@@ -236,15 +207,10 @@ def main(interaction = 'A'):
     
     prepro = Preprocessor(num_features=3, num_dimensions=4) # wozu zählen die distanzen?
     
-    prepro.compile_data_csv_to_pt(path, save_to_path)    
-    
-    print(prepro.dataframe.shape)
-    print(prepro.dataframe.tail(10))
-    print(prepro.dataframe.head(10))
-    
-    tensor = torch.load(save_to_path)
-    print(tensor.shape)
-    print(tensor[:2, :12])
+    # print(prepro.dataframe.shape)
+    # print(prepro.dataframe.tail(40))
+    # print(prepro.dataframe.head(40))
+    # print(prepro.dataframe['dis_act1_act2'].to_string())
     
     # data = prepro.load_concat_dataframe(path_concat)
     # print(data.shape)
@@ -254,13 +220,19 @@ def main(interaction = 'A'):
     # scaled = prepro.std_scale_data(tensor, scale_factor=1)
     # print(scaled[1,:])
     
-    output_path=f"Data_Preparation/Interactions/interaction_{interaction}_concat.csv"
-    #prepro.concat_csv_files(number_of_files=300, output_path=output_path, interaction=interaction)
+    concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
+    prepro.concat_csv_files(number_of_files=300, output_path=concat_path, interaction=interaction)
 
-    df = prepro.load_dataframe(output_path)
-    print(df.shape)
-    print(df.head(40))
-    print(df.info())
+    # df = prepro.load_dataframe(output_path)
+    # print(df.shape)
+    # print(df.head(40))
+    # print(df.tail(40))
+    # print(df.info())
+
+    # df_list = prepro.load_concat_dataframe(concat_path)
+    tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances=True)
+    print(tensor_data.shape)
+    
     
     
 if __name__ == '__main__':
