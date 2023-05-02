@@ -10,24 +10,28 @@ from Data_Preparation.data_preparation import Preprocessor
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, interaction_paths, transform=None):
+    def __init__(self, interaction_paths, use_distances=False, transform=None):
         """
         Args:
             interaction_paths (dict): Paths to the preprocessed csv files for each interaction
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        
         self.prepro = Preprocessor(num_features=3, num_dimensions=4)
+
+        data_list = []
+        self.interactions = np.array([])
         
-        self.data_dict = {}
         for interaction, path in interaction_paths.items():
-            self.data_dict[interaction] = self.prepro.get_LSTM_data_interaction(path)
+            print(f"Loading interaction {interaction} from {path}")
+            interaction_data = self.prepro.get_LSTM_data_interaction(path, use_distances)
+            print(interaction_data.shape)
+            num_sequences = len(interaction_data)
+            interaction_labels = np.full(shape=(num_sequences, ), fill_value=interaction)
+            
+            self.interactions = np.concatenate([self.interactions, interaction_labels], axis=0)
+            data_list.append(interaction_data)
         
-        self.data = []
-        for interaction, data in self.data_dict.items():
-            pass
-            #self.data.
-            # WIE GEHT DAS? Wahrscheinlich irgendwo früher oder
+        self.data = torch.cat(data_list, dim=0)
         
         self.transform = transform
 
@@ -60,17 +64,19 @@ def main():
         for interaction in interactions
     ]
     interaction_paths = dict(zip(interactions_num, paths))
-    
-    # dataset = TimeSeriesDataset(path=paths)
-    # dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    
-    # print(len(dataset))
-    
-    # example = next(iter(dataloader))
-    
-    # seq, label, interaction = example
-    
     print(interaction_paths)
+    
+    dataset = TimeSeriesDataset(interaction_paths)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+    
+    print(len(dataset))
+    
+    example = next(iter(dataloader))
+    
+    seq, label, interaction = example
+    print(seq.shape)
+    print(label.shape)
+    print(interaction)
     
 if __name__ == "__main__":
     main()

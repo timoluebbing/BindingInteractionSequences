@@ -42,12 +42,15 @@ class Preprocessor():
             df.drop(columns='frame', inplace=True)
         return df
     
+    def load_preprocessed_dataframe(self, csv_path):
+        df = self.load_dataframe(csv_path)
+        return self.add_features_to_interaction_dataframe(df)
+        
+        
     def add_features_to_interaction_dataframe(self, df):
         
-        df = self.add_distances_to_dataframe(df)
-        
-        df = self.normalize_coordinates_dataframe(df)  # , norm_to_center=True)
-
+        df = self.add_distances_to_dataframe(df, normalize=True)
+        df = self.normalize_coordinates_dataframe(df)  # , norm_to_center=True
         df = self.convert_orientation_dataframe(df)
         
         # Reindex columns to correct input ordering
@@ -59,7 +62,7 @@ class Preprocessor():
         
         return df.reindex(columns=columns)
     
-    def add_distances_to_dataframe(self, df):
+    def add_distances_to_dataframe(self, df, normalize=False):
         def cal_dis(x1, y1, x2, y2):
                 return math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
             
@@ -67,26 +70,28 @@ class Preprocessor():
         df['dis_act1_act2'] = df.apply(
             lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['actor2_x'], row['actor2_y']), 
             axis=1)
-        #df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
         df['dis_act1_ball'] = df.apply(
             lambda row: cal_dis(row['actor1_x'], row['actor1_y'], row['ball_x'], row['ball_y']), 
             axis=1)
-        #df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
         df['dis_act2_ball'] = df.apply(
             lambda row: cal_dis(row['actor2_x'], row['actor2_y'], row['ball_x'], row['ball_y']), 
             axis=1)
-        #df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
+        
+        if normalize:
+            df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
+            df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
+            df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
 
         return df
     
-    def normalize_coordinates_dataframe(self, df, norm_to_center=False):
+    def normalize_coordinates_dataframe(self, df, center=False):
         window_height = sim.HEIGHT
         window_width = sim.WIDTH
         
         center_x = window_width / 2
         center_y = window_height - 10 # account for boundaries
         
-        if norm_to_center:
+        if center:
             # Normalize coordinates to bottom center of window between actors
             df[['actor1_x', 'actor2_x', 'ball_x']] = df[['actor1_x', 'actor2_x', 'ball_x']] - center_x
             df[['actor1_y', 'actor2_y', 'ball_y']] = df[['actor1_y', 'actor2_y', 'ball_y']] - center_y # Das macht irgendwie noch keinen Sinn
@@ -199,37 +204,27 @@ class Preprocessor():
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'D'):
+def main(interaction = 'C', save_concat=True):
 
-    save_to_path = f"Data_Preparation/Interactions/interaction_{interaction}.pt"
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
-    path_concat = "Data_Preparation/Interactions/interaction_C_concat.csv"
+    concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
     
     prepro = Preprocessor(num_features=3, num_dimensions=4) # wozu zählen die distanzen?
     
-    # print(prepro.dataframe.shape)
-    # print(prepro.dataframe.tail(40))
-    # print(prepro.dataframe.head(40))
-    # print(prepro.dataframe['dis_act1_act2'].to_string())
+    # raw_seq = prepro.load_dataframe(path)
+    # print(raw_seq.shape)
+    # print(raw_seq.head(20))
     
-    # data = prepro.load_concat_dataframe(path_concat)
-    # print(data.shape)
-    # print(data.head)
+    test_seq = prepro.load_preprocessed_dataframe(path)
+    print(test_seq.shape)
+    print(test_seq.tail(40))
+    print(test_seq.head(40))
+    print(test_seq['dis_act1_ball'].to_string())
     
-    
-    # scaled = prepro.std_scale_data(tensor, scale_factor=1)
-    # print(scaled[1,:])
-    
-    concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
-    prepro.concat_csv_files(number_of_files=300, output_path=concat_path, interaction=interaction)
+    if save_concat:
+        print("Concatenating csv files")
+        prepro.concat_csv_files(number_of_files=300, output_path=concat_path, interaction=interaction)
 
-    # df = prepro.load_dataframe(output_path)
-    # print(df.shape)
-    # print(df.head(40))
-    # print(df.tail(40))
-    # print(df.info())
-
-    # df_list = prepro.load_concat_dataframe(concat_path)
     tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances=True)
     print(tensor_data.shape)
     

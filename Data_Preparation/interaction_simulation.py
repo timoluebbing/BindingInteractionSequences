@@ -534,4 +534,4 @@ def main(interaction='A'):
     simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('D') 
+    main('C') 
