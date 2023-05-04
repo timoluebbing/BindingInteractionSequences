@@ -7,13 +7,11 @@
 
 ## Bis zum nächten Meeting
 - [x] Distancen normalisieren, (wie?, z.B. auf [0, 1]) 
-- [ ] Bug fix norm distances ???
-- [ ] Center norm positions besprechen
 - [x] Positionen normalisieren, z.B. zu einer unteren Ecke
 - [x] weitere Properties aufzeichnen, mass, moment, velocity, ...
 - [x] collision force, siehe arbiter class
 - [x] Starte mit costom dataset class 
-- [ ] Fix: Interaction in custom dataset class
+- [x] Fix: Interaction in custom dataset class
 
 ## Wie gehts danach weiter
 - [ ] LSTM definieren
