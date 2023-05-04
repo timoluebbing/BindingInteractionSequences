@@ -10,10 +10,10 @@ from Data_Preparation.data_preparation import Preprocessor
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, interaction_paths, use_distances=False, transform=None):
+    def __init__(self, interaction_paths, use_distances=True, transform=None):
         """
         Args:
-            interaction_paths (dict): Paths to the preprocessed csv files for each interaction
+            interaction_paths (dict): Labels with paths to the preprocessed csv files for each interaction
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.prepro = Preprocessor(num_features=3, num_dimensions=4)
@@ -24,7 +24,7 @@ class TimeSeriesDataset(Dataset):
         for interaction, path in interaction_paths.items():
             print(f"Loading interaction {interaction} from {path}")
             interaction_data = self.prepro.get_LSTM_data_interaction(path, use_distances)
-            print(interaction_data.shape)
+            print(interaction_data.shape, end='\n\n')
             num_sequences = len(interaction_data)
             interaction_labels = np.full(shape=(num_sequences, ), fill_value=interaction)
             
@@ -66,17 +66,18 @@ def main():
     interaction_paths = dict(zip(interactions_num, paths))
     print(interaction_paths)
     
+    ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
     
-    print(len(dataset))
+    print(f"Number of samples: {len(dataset)}")
     
     example = next(iter(dataloader))
-    
     seq, label, interaction = example
-    print(seq.shape)
-    print(label.shape)
-    print(interaction)
+    print("\nExample sequence:")
+    print(f"Sequence shape:  {seq.shape}")
+    print(f"Label shape:     {label.shape}")
+    print(f"Interaction:     {interaction.item()}")
     
 if __name__ == "__main__":
     main()

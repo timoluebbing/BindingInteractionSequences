@@ -48,9 +48,9 @@ class Preprocessor():
         
         
     def add_features_to_interaction_dataframe(self, df):
-        
-        df = self.add_distances_to_dataframe(df, normalize=True)
-        df = self.normalize_coordinates_dataframe(df)  # , norm_to_center=True
+
+        df = self.normalize_coordinates_dataframe(df)  # , norm_to_center=True        
+        df = self.add_distances_to_dataframe(df, normalize=False)
         df = self.convert_orientation_dataframe(df)
         
         # Reindex columns to correct input ordering
@@ -78,6 +78,7 @@ class Preprocessor():
             axis=1)
         
         if normalize:
+            # falsch, da abhängig von trial
             df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
             df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
             df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
@@ -89,7 +90,7 @@ class Preprocessor():
         window_width = sim.WIDTH
         
         center_x = window_width / 2
-        center_y = window_height - 10 # account for boundaries
+        center_y = window_height / 2 # account for boundaries
         
         if center:
             # Normalize coordinates to bottom center of window between actors
@@ -113,7 +114,7 @@ class Preprocessor():
         
         return [
             f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_{csv_id}.csv"
-            for csv_id in range(number_of_files - 1)
+            for csv_id in range(number_of_files)
         ]
       
     def concat_csv_files(self, number_of_files, output_path, interaction='A'):
@@ -140,7 +141,7 @@ class Preprocessor():
         # return list of sequence dataframes
         return [
             df_concat[df_concat['video_id'] == i]
-            for i in range(df_concat['video_id'].max())
+            for i in range(df_concat['video_id'].max() + 1)
         ]
     
     def dataframes_to_tensor(self, df_list):
@@ -204,7 +205,7 @@ class Preprocessor():
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'C', save_concat=True):
+def main(interaction = 'D', save_concat=False):
 
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
     concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
@@ -215,11 +216,11 @@ def main(interaction = 'C', save_concat=True):
     # print(raw_seq.shape)
     # print(raw_seq.head(20))
     
-    test_seq = prepro.load_preprocessed_dataframe(path)
-    print(test_seq.shape)
-    print(test_seq.tail(40))
-    print(test_seq.head(40))
-    print(test_seq['dis_act1_ball'].to_string())
+    # test_seq = prepro.load_preprocessed_dataframe(path)
+    # print(test_seq.shape)
+    # print(test_seq.tail(40))
+    # print(test_seq.head(40))
+    # print(test_seq['dis_act1_act2'].to_string())
     
     if save_concat:
         print("Concatenating csv files")
@@ -227,6 +228,7 @@ def main(interaction = 'C', save_concat=True):
 
     tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances=True)
     print(tensor_data.shape)
+    # print(tensor_data[-1:,:10,:])
     
     
     
