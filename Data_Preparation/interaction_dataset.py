@@ -41,6 +41,11 @@ class TimeSeriesDataset(Dataset):
         sample = self.data[idx]
         sequence, label = self.prepro.create_inout_sequence(sample)
         
+        # print(sequence.shape, label.shape)
+        
+        # sequence = sequence.permute(1,0,2)
+        # label = label.premute(1,0,2)
+        
         interaction = self.interactions[idx]
 
         if self.transform:
@@ -75,12 +80,15 @@ def main():
     
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=5, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
     example = next(iter(dataloader))
     seq, label, interaction = example
+    seq = seq.permute(1,0,2)
+    label = label.permute(1,0,2)
+    
     print("\nExample sequence:")
     print(f"Sequence shape:  {seq.shape} {seq.dtype}")
     print(f"Label shape:     {label.shape} {label.dtype}")
