@@ -54,9 +54,10 @@ class Preprocessor():
         df = self.convert_orientation_dataframe(df)
         
         # Reindex columns to correct input ordering
-        columns = ['actor1_x', 'actor1_y', 'actor1_o_sin', 'actor1_o_cos', 
-                   'actor2_x', 'actor2_y', 'actor2_o_sin', 'actor2_o_cos',
-                   'ball_x', 'ball_y', 'ball_o_sin', 'ball_o_cos',
+        columns = ['actor1_x', 'actor1_y', 'actor1_o_sin', 'actor1_o_cos', 'actor1_col_force_x', 'actor1_col_force_y',
+                   'actor2_x', 'actor2_y', 'actor2_o_sin', 'actor2_o_cos', 'actor2_col_force_x', 'actor2_col_force_y',
+                   'ball_x', 'ball_y', 'ball_o_sin', 'ball_o_cos', 'ball_col_force_x', 'ball_col_force_y',
+                   'motor_fx', 'motor_fy',
                    'dis_act1_act2', 'dis_act1_ball', 'dis_act2_ball']
         df = df[columns]  # instead of dropping all the other columns
         
@@ -78,10 +79,11 @@ class Preprocessor():
             axis=1)
         
         if normalize:
-            # falsch, da abhängig von trial
-            df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
-            df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
-            df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
+            pass
+            # falsch, da abhängig von trial!!!
+            # df['dis_act1_act2'] = (df['dis_act1_act2'] - df['dis_act1_act2'].min()) / (df['dis_act1_act2'].max() - df['dis_act1_act2'].min())
+            # df['dis_act1_ball'] = (df['dis_act1_ball'] - df['dis_act1_ball'].min()) / (df['dis_act1_ball'].max() - df['dis_act1_ball'].min())
+            # df['dis_act2_ball'] = (df['dis_act2_ball'] - df['dis_act2_ball'].min()) / (df['dis_act2_ball'].max() - df['dis_act2_ball'].min())
 
         return df
     
@@ -103,6 +105,13 @@ class Preprocessor():
         
         return df
     
+    def normalize_motor_force(self, df):
+        # Normalize to [-1, 1] over all sequences
+        df['motor_fx'] = 2 * ((df['motor_fx'] - df['motor_fx'].min()) / (df['motor_fx'].max() - df['motor_fx'].min())) - 1
+        df['motor_fy'] = 2 * ((df['motor_fy'] - df['motor_fy'].min()) / (df['motor_fy'].max() - df['motor_fy'].min())) - 1
+        
+        return df
+    
     def convert_orientation_dataframe(self, df): 
         # Convert radient to sin(radient)
         df[['actor1_o_sin', 'actor2_o_sin', 'ball_o_sin']] = df[['actor1_o', 'actor2_o', 'ball_o']].applymap(math.sin)
@@ -117,7 +126,7 @@ class Preprocessor():
             for csv_id in range(number_of_files)
         ]
       
-    def concat_csv_files(self, number_of_files, output_path, interaction='A'):
+    def concat_csv_files(self, number_of_files, output_path, preprocess=True, interaction='A'):
         
         csv_paths = self.get_csv_paths(number_of_files, interaction=interaction)
         
@@ -125,12 +134,17 @@ class Preprocessor():
         for i, path in enumerate(csv_paths):
             df = pd.read_csv(path) 
             
-            df = self.add_features_to_interaction_dataframe(df)
+            if preprocess:
+                df = self.add_features_to_interaction_dataframe(df)
             
             df.insert(0, 'video_id', i)
             df_list.append(df)
         
         df_concat = pd.concat(df_list)
+        
+        if preprocess:
+            df_concat = self.normalize_motor_force(df_concat)
+        
         df_concat.to_csv(output_path, index=False)
     
     ################################################################
@@ -185,32 +199,36 @@ class Preprocessor():
         
         return seq, label
     
-    def get_LSTM_data_interaction(self, path, use_distances=False):
+    def get_LSTM_data_interaction(self, path, use_distances_and_motor=False, distances_and_motor_only=False):
         """ Returns interaction specific tensor data
 
         Args:
-            path (str):                     Path to preprocessed csv data
-            use_distances (bool, optional): Flag to determine whether distances are considered as input
-
+            path (str)                     : Path to preprocessed csv data
+            use_distances (bool, optional) : Flag to return feature data with distances 
+            distances_only (bool, optional): Flag to return distances only without features
+            
         Returns:
             torch.Tensor: Tensor of shape (num sequences, sequence_length, features)
         """        
         sequence_list = self.load_concat_dataframe(path)
         tensor_list = self.dataframes_to_tensor(sequence_list)
 
-        if use_distances:
-            # Einfach returnen weil die Data ja zur Zeit noch flattened sind
+        if use_distances_and_motor:
             return tensor_list
+
+        if distances_and_motor_only:
+            return tensor_list[:, :, (self.num_dimensions * self.num_features) : ]
 
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'D', save_concat=False):
+def main(interaction = 'D', save_concat=True):
 
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
     concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
+    concat_raw_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat_raw.csv"
     
-    prepro = Preprocessor(num_features=3, num_dimensions=4) # wozu zählen die distanzen?
+    prepro = Preprocessor(num_features=3, num_dimensions=6) # wozu zählen die distanzen?
     
     # raw_seq = prepro.load_dataframe(path)
     # print(raw_seq.shape)
@@ -224,9 +242,12 @@ def main(interaction = 'D', save_concat=False):
     
     if save_concat:
         print("Concatenating csv files")
-        prepro.concat_csv_files(number_of_files=300, output_path=concat_path, interaction=interaction)
+        prepro.concat_csv_files(number_of_files=300, 
+                                output_path=concat_raw_path,
+                                preprocess=False, 
+                                interaction=interaction)
 
-    tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances=True)
+    tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances_and_motor=True)
     print(tensor_data.shape)
     # print(tensor_data[-1:,:10,:])
     

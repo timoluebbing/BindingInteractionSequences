@@ -41,7 +41,7 @@ class Interaction():
         self.create_boundaries()
         
         # Actors
-        actor_weights_by_interaction = {'A': 260, 'B':80, 'C':270, 'D':200}
+        actor_weights_by_interaction = {'A': 260, 'B':80, 'C':300, 'D':200}
         self.actor_weight = actor_weights_by_interaction[self.interaction]
         self.init_random_actor_positions(num_sequences=num_trials, seed=None)
         self.actor1, self.actor2 = None, None # self.create_actors()
@@ -197,6 +197,8 @@ class Interaction():
         self.ball.body.body_type = pymunk.Body.DYNAMIC
         self.ball.body.apply_impulse_at_local_point((fx, fy), (0, 0))
         
+        return fx, fy
+        
     def jumping_event_manually(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
             print(self.actor2.body.body_type)
@@ -253,7 +255,9 @@ class Interaction():
                 opposite_actor_position = self.actor2.body.position
             else:
                 opposite_actor_position = self.actor1.body.position
-            self.apply_impulse_at_random_angle(ball_position, opposite_actor_position)         
+            self.fx, self.fy = self.apply_impulse_at_random_angle(ball_position, opposite_actor_position)
+        else:
+            self.fx, self.fy = 0, 0         
     
     def throw_ball_back_event_manually(self, event):
         if not self.ball:
@@ -301,7 +305,7 @@ class Interaction():
         # print(self.collision_detected_at_frame, self.throw_time, self.frame_id)
         if (
             self.already_collided 
-            and self.collision_detected_at_frame + self.throw_time == self.frame_id  # wait random time before throwing
+            and self.collision_detected_at_frame + self.throw_time - 10 == self.frame_id  # wait random time before throwing
         ):
             print('Throwing back')
             ball_position = self.ball.body.position
@@ -309,7 +313,7 @@ class Interaction():
                 opposite_actor_position = self.actor1.body.position
             else:
                 opposite_actor_position = self.actor2.body.position
-            self.apply_impulse_at_random_angle(ball_position, opposite_actor_position, throw_back=True)
+            self.fx, self.fy = self.apply_impulse_at_random_angle(ball_position, opposite_actor_position, throw_back=True)
     
     def on_collision(self, arbiter, space, data):
         if self.already_collided:
@@ -476,6 +480,9 @@ class Interaction():
         except Exception:
             return 0.0, 0.0, 0.0
     
+    def get_motor_force(self):
+        return (0.0, 0.0) if self.fx is None or self.fy is None else (self.fx, self.fy)
+    
     def export_data_for_one_time_step(self):
         shapes = self.space.shapes[4:] # Exclude boundary shapes
         body_data_list = [
@@ -497,13 +504,21 @@ class Interaction():
              mass] for (pos, angle, forces, velocity, mass) in body_data_list
             ]
         flat_data = [x for xs in data for x in xs]
+        
         flat_data.insert(0, self.frame_id)
+        fx, fy = self.get_motor_force()
+        flat_data.insert(len(flat_data), fx)
+        flat_data.insert(len(flat_data), fy)
+        
         return flat_data
 
     def export_data_to_csv(self): 
-        head = ["frame", "actor1_x", "actor1_y", "actor1_o", "actor1_col_force_x", "actor1_col_force_y", "actor1_ke", "actor1_vel_x", "actor1_vel_y", "actor1_mass",
-                         "actor2_x", "actor2_y", "actor2_o", "actor2_col_force_x", "actor2_col_force_y", "actor2_ke", "actor2_vel_x", "actor2_vel_y", "actor2_mass",
-                         "ball_x", "ball_y", "ball_o", "ball_col_force_x", "ball_col_force_y", "ball_ke", "ball_vel_x", "ball_vel_y", "ball_mass"]       
+        head = ["frame", 
+                "actor1_x", "actor1_y", "actor1_o", "actor1_col_force_x", "actor1_col_force_y", "actor1_ke", "actor1_vel_x", "actor1_vel_y", "actor1_mass",
+                "actor2_x", "actor2_y", "actor2_o", "actor2_col_force_x", "actor2_col_force_y", "actor2_ke", "actor2_vel_x", "actor2_vel_y", "actor2_mass",
+                "ball_x", "ball_y", "ball_o", "ball_col_force_x", "ball_col_force_y", "ball_ke", "ball_vel_x", "ball_vel_y", "ball_mass",
+                "motor_fx", "motor_fy"]   
+            
         headers = {
             'A': head,
             'B': head,
@@ -534,4 +549,4 @@ def main(interaction='A'):
     simulation.run(automated=True)
 
 if __name__ == "__main__":
-    main('C') 
+    main('D') 
