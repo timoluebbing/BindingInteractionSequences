@@ -10,8 +10,9 @@ from torch._C import device
 from torch.utils.data import DataLoader
 
 import sys
+pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)   
+sys.path.append(pc_dir)   
 
 from Data_Preparation.data_preparation import Preprocessor
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
@@ -47,25 +48,26 @@ class CORE_NET(nn.Module):
             input_size=self.input_size, 
             hidden_size=self.hidden_size, 
             bias=True, 
-            device=self.device)
+            #device=self.device
+            ).to(self.device)
 
         if self.layer_norm:
             self.lnorm = nn.LayerNorm(
                 self.hidden_size, 
-                device=self.device
-            )
+                # device=self.device
+            ).to(self.device)
 
         self.linear = nn.Linear(
             in_features=self.hidden_size, 
             out_features=self.output_size,  
-            device=self.device
-        )
+            #device=self.device
+        ).to(self.device)
         
         self.event_codes = nn.Linear(
             in_features=self.num_interactions,
             out_features=self.num_interactions,
-            device=self.device
-        )
+            #device=self.device
+        ).to(self.device)
 
 
     def forward(self, input_seq, interaction_label, state=None):
@@ -78,16 +80,11 @@ class CORE_NET(nn.Module):
         one_hot_vector = one_hot_vector.to(torch.float32)
         
         interaction_code = self.event_codes(one_hot_vector)
-        #print(interaction_code)
-        #print(input_seq.shape)
+        # print(interaction_code)
+        # print(input_seq.shape)
         
-        #interaction_codes = interaction_code.repeat(input_seq.shape[1]) # shape[1] falls batchsize drin ist
-        #print(interaction_codes.shape)
-        
-        # input_seq shape: (batch_size=1?, seq_len, input_size/features)
-        # interaction_code als tuple in extra spalte? Oder 4 spalten?
         input_seq = torch.cat([input_seq, interaction_code], dim=1) # dim=1 falls shape von input [seq_len, features]
-        #print(input_seq.shape)
+        # print(input_seq.shape)
         
         hn, cn = self.lstm(input_seq, state)
  
@@ -126,7 +123,7 @@ def main():
     
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=5, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
@@ -142,7 +139,7 @@ def main():
     
     print(seq.shape, label.shape)
     print(seq.size()[0])
-    print(interaction.item())
+    print(interaction)
     
     mse = nn.MSELoss()
     
@@ -152,7 +149,7 @@ def main():
         layer_norm=False
         ).to(device)
     
-    state = model.init_hidden(batch_size=1)
+    state = model.init_hidden(batch_size=batch_size)
     print(f"state: {state[0].shape} {state[1].shape}")
     
     outs = []
@@ -160,14 +157,14 @@ def main():
     
     for j in range(seq_len):
         _input = seq[j, :, :].to(device)
-        print(f"input shape step {j}: {_input.shape}")
+        # print(f"input shape step {j}: {_input.shape}")
         out, state = model.forward(input_seq=_input, interaction_label=interaction, state=state)
         outs.append(out)
         
     outs = torch.stack(outs).to(device)
     print(f"Stacked outputs: {outs.shape}")
     
-    loss = mse(outs, label[:,:,(3*6)])
+    loss = mse(outs, label)
     print(f"loss: {loss}")
     
 if __name__ == "__main__":

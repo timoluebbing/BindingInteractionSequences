@@ -11,8 +11,9 @@ from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 import sys
+pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -43,24 +44,24 @@ class LSTM_Trainer():
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
         print(f'DEVICE TrainM: {self.device}')
 
-        self._model = CORE_NET(
+        self.model = CORE_NET(
             input_size=num_dim*num_feat+independent_feat+4, 
             hidden_layer_size=hidden_num, 
             layer_norm=layer_norm
         )
         self.batch_size = batch_size
-        self._loss_function = loss_function
-        self._optimizer = torch.optim.Adam(
-            self._model.parameters(), 
+        self.loss_function = loss_function
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), 
             lr=learning_rate, 
             betas=betas, 
             weight_decay=weight_decay
         )
 
         print('Initialized model!')
-        print(self._model)
-        print(self._loss_function)
-        print(self._optimizer)
+        print(self.model)
+        print(self.loss_function)
+        print(self.optimizer)
 
 
     def train(self, 
@@ -76,10 +77,9 @@ class LSTM_Trainer():
 
             single_losses = torch.tensor([0.0], device=self.device) 
 
-            self._model.zero_grad()
-            self._optimizer.zero_grad()
+            self.model.zero_grad()
+            self.optimizer.zero_grad()
 
-            # the following can be paralized!!!! But takes up memory!!!
             for seq, label, interaction in tqdm(dataloader):
                 
                 seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
@@ -88,23 +88,26 @@ class LSTM_Trainer():
                 label = label.permute(1,0,2)
                 seq_len, batch_size, num_features = seq.size()
 
-                state = self._model.init_hidden(batch_size=batch_size)
+                state = self.model.init_hidden(batch_size=batch_size)
 
                 outs = []
 
                 for j in range(seq_len):
-                    _input = seq[j, :, :].to(self.device)
-                    out, state = self._model.forward(_input, interaction, state)
+                    if teacher_forcing:
+                        _input = seq[j, :, :].to(self.device)
+                        out, state = self.model.forward(_input, interaction, state)
+                    else:
+                        out, state = self.model.forward(out, interaction, state)
                     outs.append(out)
 
                 outs = torch.stack(outs).to(self.device)
-                single_loss = self._loss_function(outs, label)
+                single_loss = self.loss_function(outs, label)
 
                 single_loss.backward()
                 with torch.no_grad():
                     single_losses += single_loss
 
-            self._optimizer.step()
+                self.optimizer.step()
 
             with torch.no_grad():
                 ep_loss = single_losses.clone().detach() 
@@ -120,29 +123,6 @@ class LSTM_Trainer():
         self.save_model(save_path)
 
         return losses
-    
-            #---------------------
-            # for i in range(len(train_sequences)):
-            #     idx = torch.randperm(num_batches)[:round((num_batches_new))]
-
-            #     state = self._model.init_hidden(num_batches_new)
-
-            #     ins_t = seq_ins[i][idx]          # shape: num batches x batch size x num input
-            #     tars_t = seq_tars[i][idx]        # shape: num batches x batch size x num input
-
-            #     outs = []
-            #     for j in range(batch_size):
-            #         _input = ins_t[:,j,:].view(num_batches_new, num_input).to(self.device)
-            #         out, state = self._model.forward(_input, state)
-            #         outs.append(out)
-
-            #     outs = torch.stack(outs).to(self.device)        # shape: batch size x num batches x num input
-            #     single_loss = self._loss_function(outs, tars_t.permute(1,0,2))                  
-
-            #     single_loss.backward()
-
-            #     with torch.no_grad():
-            #         single_losses += single_loss
 
     def plot_losses(self, losses, plot_path):
         fig = plt.figure()
@@ -160,7 +140,7 @@ class LSTM_Trainer():
 
 
     def save_model(self, path):
-        torch.save(self._model.state_dict(), path)
+        torch.save(self.model.state_dict(), path)
         print(f'Model was saved in: {path}')
 
 
@@ -178,29 +158,30 @@ def main():
     
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
     
     ##### Model parameters #####
-    batch_size = 1
-    epochs = 5
+    batch_size = 32
+    epochs = 400
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
-    lr = 0.01
+    lr = 0.001
     weight_decay = 0.9
     betas = (0.9, 0.999)
     
-    hidden_num = 100
-    layer_norm = False
+    hidden_num = 256
+    layer_norm = True
+
     n_dim = 6
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     
     model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{epochs}"
-    model_name += 'lnorm' if layer_norm else ''
+    model_name += '_lnorm' if layer_norm else ''
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
