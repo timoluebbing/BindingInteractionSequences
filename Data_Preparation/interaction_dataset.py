@@ -10,15 +10,16 @@ from Data_Preparation.data_preparation import Preprocessor
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, interaction_paths, use_distances_and_motor=True, transform=None):
+    def __init__(self, interaction_paths, n_out=18, use_distances_and_motor=True, transform=None):
         """
         Args:
             interaction_paths (dict): Labels with paths to the preprocessed csv files for each interaction
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.interaction_paths = interaction_paths
+        self.n_out = n_out
         self.use_distances_and_motor = use_distances_and_motor
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.prepro = Preprocessor(num_features=3, num_dimensions=6)
 
         self.data_list = []
@@ -39,12 +40,7 @@ class TimeSeriesDataset(Dataset):
             idx = idx.tolist()
 
         sample = self.data[idx]
-        sequence, label = self.prepro.create_inout_sequence(sample)
-        
-        # print(sequence.shape, label.shape)
-        
-        # sequence = sequence.permute(1,0,2)
-        # label = label.premute(1,0,2)
+        sequence, label = self.prepro.create_inout_sequence(sample, self.n_out)
         
         interaction = self.interactions[idx]
 

@@ -33,7 +33,7 @@ class CORE_NET(nn.Module):
         layer_norm=False
     ):
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
         print(f'DEVICE Core_Net: {self.device}')
 
         super(CORE_NET,self).__init__()
@@ -72,14 +72,14 @@ class CORE_NET(nn.Module):
         
         # Ist das der richtige Ansatz?
         # One hot translation outside forward?
-        interaction_label = interaction_label.to(torch.int64)
-        one_hot_label = F.one_hot(interaction_label, 
+        # interaction_label = interaction_label.to(torch.int64)
+        one_hot_vector = F.one_hot(interaction_label, 
                                   num_classes=self.num_interactions).to(self.device)
-        one_hot_label = one_hot_label.to(torch.float32)
+        one_hot_vector = one_hot_vector.to(torch.float32)
         
-        interaction_code = self.event_codes(one_hot_label)
-        print(interaction_code)
-        print(input_seq.shape)
+        interaction_code = self.event_codes(one_hot_vector)
+        #print(interaction_code)
+        #print(input_seq.shape)
         
         #interaction_codes = interaction_code.repeat(input_seq.shape[1]) # shape[1] falls batchsize drin ist
         #print(interaction_codes.shape)
@@ -87,7 +87,7 @@ class CORE_NET(nn.Module):
         # input_seq shape: (batch_size=1?, seq_len, input_size/features)
         # interaction_code als tuple in extra spalte? Oder 4 spalten?
         input_seq = torch.cat([input_seq, interaction_code], dim=1) # dim=1 falls shape von input [seq_len, features]
-        print(input_seq.shape)
+        #print(input_seq.shape)
         
         hn, cn = self.lstm(input_seq, state)
  
@@ -126,7 +126,7 @@ def main():
     
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=5, shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
@@ -144,7 +144,8 @@ def main():
     print(seq.size()[0])
     print(interaction.item())
     
-
+    mse = nn.MSELoss()
+    
     model = CORE_NET(
         input_size=6*3+2+3+4, 
         hidden_layer_size=10, 
@@ -153,8 +154,10 @@ def main():
     
     state = model.init_hidden(batch_size=1)
     print(f"state: {state[0].shape} {state[1].shape}")
+    
     outs = []
     print(seq_len)
+    
     for j in range(seq_len):
         _input = seq[j, :, :].to(device)
         print(f"input shape step {j}: {_input.shape}")
@@ -163,6 +166,9 @@ def main():
         
     outs = torch.stack(outs).to(device)
     print(f"Stacked outputs: {outs.shape}")
+    
+    loss = mse(outs, label[:,:,(3*6)])
+    print(f"loss: {loss}")
     
 if __name__ == "__main__":
     main()

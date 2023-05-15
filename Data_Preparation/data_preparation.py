@@ -185,11 +185,12 @@ class Preprocessor():
 
         return torch.Tensor(df.values)
         
-    def create_inout_sequence(self, input_data):
+    def create_inout_sequence(self, input_data, n_features):
         """ Creates input and label sequences for a single interaction sequence
 
         Args:
             input_data (torch.Tensor): Tensor of shape (sequence_length, features)
+            n_features (int)         : Number of output features
 
         Returns:
             tuple: Tuple of input and label sequence
@@ -197,7 +198,7 @@ class Preprocessor():
         seq = input_data[:-1]
         label = input_data[1:]
         
-        return seq, label
+        return seq, label[:,:n_features]
     
     def get_LSTM_data_interaction(self, path, use_distances_and_motor=False, distances_and_motor_only=False):
         """ Returns interaction specific tensor data
@@ -222,7 +223,7 @@ class Preprocessor():
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'D', save_concat=True):
+def main(interaction = 'D', save_concat=False):
 
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
     concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
