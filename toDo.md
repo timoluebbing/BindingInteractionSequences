@@ -8,7 +8,9 @@
 - Normalization der Koordinaten ok?
 - Preprocessed Daten 3 * 4 features pro frame (position und orientierung)
 - Input shape der Daten besprechen
-- Ist das Trainieren des LSTM am Anfang ohne Binding Matrix usw ohne Active Tuning oder mit?
+- Ist das Trainieren des LSTM am Anfang ohne Binding Matrix usw ohne Active Tuning oder mit? -> ohne AT
+# Neu
+- Impact force in Interaktion C besprechen (solange der Ball am Actor hängt feuert der hohe Werte raus)
 
 ## Bis zum nächten Meeting
 - [x] Distancen normalisieren, (wie?, z.B. auf [0, 1]) 
@@ -19,7 +21,7 @@
 - [x] Fix: All interactions in custom dataset class
 - [x] Force ball wenn er los fliegt (motorcode unabhängig auch ins lstm rein)
 - [x] Force auch ins lstm
-- [ ] Impact force und motor force normalisieren? Wie -> auf -1,1 über alle Daten (nur die ungleich 0 normalisieren, zum abs max normalisieren, check ob 0 0 bleibt)
+- [x] Impact force und motor force normalisieren? Wie -> auf -1,1 über alle Daten (nur die ungleich 0 normalisieren, zum abs max normalisieren, check ob 0 0 bleibt)
 - [x] event codes auch für batchsize > 1
 - [ ] teacher forcing flag
 - [ ] renderer for prediction

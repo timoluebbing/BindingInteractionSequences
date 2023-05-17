@@ -105,16 +105,33 @@ class Preprocessor():
         
         return df
     
-    def normalize_motor_force(self, df):
+    def normalize_forces(self, df):
         # Normalize to [-1, 1] by abs highest values centered around 0 over all sequences
         def norm(x, column):
-            if df[column].abs().max() == - df[column].min():
+            if x == 0: # Works without this if clause, but speeds things up
+                return 0.0
+            elif df[column].abs().max() == - df[column].min():
                 return 2 * ((x - df[column].min()) / (df[column].abs().max() - df[column].min())) - 1
             else:
                 return 2 * ((x + df[column].max()) / (df[column].max() + df[column].max())) - 1
         
-        df['motor_fx'] = df[['motor_fx']].applymap(lambda x: norm(x, 'motor_fx'))
-        df['motor_fy'] = df[['motor_fy']].applymap(lambda x: norm(x, 'motor_fy'))
+        columns = ['motor_fx', 'motor_fy', 
+                   'actor1_col_force_x', 'actor1_col_force_y', 
+                   'actor2_col_force_x', 'actor2_col_force_y',
+                   'ball_col_force_x', 'ball_col_force_y',]
+        
+        for column in columns:
+            df[column] = df[[column]].applymap(lambda x: norm(x, column))
+            
+        
+        # df['motor_fx'] = df[['motor_fx']].applymap(lambda x: norm(x, 'motor_fx'))
+        # df['motor_fy'] = df[['motor_fy']].applymap(lambda x: norm(x, 'motor_fy'))
+        # df['actor1_col_force_x'] = df[['actor1_col_force_x']].applymap(lambda x: norm(x, 'actor1_col_force_x'))
+        # df['actor1_col_force_y'] = df[['actor1_col_force_y']].applymap(lambda x: norm(x, 'actor1_col_force_y'))
+        # df['actor2_col_force_x'] = df[['actor2_col_force_x']].applymap(lambda x: norm(x, 'actor2_col_force_x'))
+        # df['actor2_col_force_y'] = df[['actor2_col_force_y']].applymap(lambda x: norm(x, 'actor2_col_force_y'))
+        # df['ball_col_force_x'] = df[['ball_col_force_x']].applymap(lambda x: norm(x, 'ball_col_force_x'))
+        # df['ball_col_force_x'] = df[['ball_col_force_x']].applymap(lambda x: norm(x, 'ball_col_force_x'))
         
         return df
     
@@ -138,6 +155,7 @@ class Preprocessor():
         
         df_list = []
         for i, path in enumerate(csv_paths):
+            print(f"Processing seq {i}") if i % 50 == 0 else None
             df = pd.read_csv(path) 
             
             if preprocess:
@@ -149,7 +167,7 @@ class Preprocessor():
         df_concat = pd.concat(df_list)
         
         if preprocess:
-            df_concat = self.normalize_motor_force(df_concat)
+            df_concat = self.normalize_forces(df_concat)
         
         df_concat.to_csv(output_path, index=False)
     
@@ -229,7 +247,7 @@ class Preprocessor():
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'A', save_concat=False):
+def main(interaction = 'D', save_concat=True):
 
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
     concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
@@ -254,18 +272,18 @@ def main(interaction = 'A', save_concat=False):
                                 preprocess=True, 
                                 interaction=interaction)
 
-    #tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances_and_motor=True)
-    #print(tensor_data.shape)
-    # print(tensor_data[0,:40,-6:])
+    tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances_and_motor=True)
+    print(tensor_data.shape)
+    print(tensor_data[0,:40,-6:])
+        
+    # df = pd.DataFrame({
+    #     'motor_fx': [-6,-5,-4,-3,-1,0,0,0,0,1,2,3,4],
+    #     'motor_fy': [-4,-3,-1,0,0,0,0,1,2,3,4,5,6],
+    # })
     
-    df = pd.DataFrame({
-        'motor_fx': [-6,-5,-4,-3,-1,0,0,0,0,1,2,3,4],
-        'motor_fy': [-4,-3,-1,0,0,0,0,1,2,3,4,5,6],
-    })
-    
-    print(df, end='\n\n')
-    test = prepro.normalize_motor_force(df)
-    print(test)
+    # print(df, end='\n\n')
+    # test = prepro.normalize_motor_force(df)
+    # print(test)
     
     
     

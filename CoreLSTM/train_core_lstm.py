@@ -86,7 +86,7 @@ class LSTM_Trainer():
                 interaction = interaction.to(torch.int64)
                 seq = seq.permute(1,0,2)
                 label = label.permute(1,0,2)
-                seq_len, batch_size, num_features = seq.size()
+                seq_len, batch_size, _ = seq.size()
 
                 state = self.model.init_hidden(batch_size=batch_size)
 
@@ -111,14 +111,11 @@ class LSTM_Trainer():
 
             with torch.no_grad():
                 ep_loss = single_losses.clone().detach() 
-                avg_loss = ep_loss / (len(dataloader) * batch_size)
+                avg_loss = ep_loss / (len(dataloader) * self.batch_size)
+                print(f'Epoch: {ep:1} - Avg. Loss: {avg_loss.item():10.8f} - Epoch Loss: {ep_loss.item():8.4f}')
 
                 # save loss of epoch
                 losses.append(avg_loss.item())
-                # if ep%25 == 1:
-                print(f'epoch: {ep:3} loss: {avg_loss.item():10.8f}')
-
-        # print(f'epoch: {ep:3} loss: {single_losses.item():10.10f}')
 
         self.save_model(save_path)
 
@@ -157,15 +154,16 @@ def main():
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
+    batch_size = 20
+
     dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
     
     ##### Model parameters #####
-    batch_size = 32
-    epochs = 400
+    epochs = 100
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
