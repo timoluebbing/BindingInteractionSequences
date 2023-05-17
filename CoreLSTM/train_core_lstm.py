@@ -63,7 +63,6 @@ class LSTM_Trainer():
         print(self.loss_function)
         print(self.optimizer)
 
-
     def train(self, 
               epochs, 
               dataloader,         
@@ -86,28 +85,12 @@ class LSTM_Trainer():
                 interaction = interaction.to(torch.int64)
                 seq = seq.permute(1,0,2)
                 label = label.permute(1,0,2)
-                seq_len, batch_size, _ = seq.size()
-
-                state = self.model.init_hidden(batch_size=batch_size)
-
-                outs = []
-
-                for j in range(seq_len):
-                    if teacher_forcing:
-                        _input = seq[j, :, :].to(self.device)
-                        out, state = self.model.forward(_input, interaction, state)
-                    else:
-                        out, state = self.model.forward(out, interaction, state)
-                    outs.append(out)
-
-                outs = torch.stack(outs).to(self.device)
-                single_loss = self.loss_function(outs, label)
-
-                single_loss.backward()
-                with torch.no_grad():
-                    single_losses += single_loss
-
-                self.optimizer.step()
+                
+                single_losses = self.train_single_sequence(seq, 
+                                                           label, 
+                                                           interaction, 
+                                                           single_losses,
+                                                           teacher_forcing)
 
             with torch.no_grad():
                 ep_loss = single_losses.clone().detach() 
@@ -121,6 +104,37 @@ class LSTM_Trainer():
 
         return losses
 
+    def train_single_sequence(self, 
+                       seq, 
+                       label, 
+                       interaction, 
+                       single_losses,
+                       teacher_forcing=False
+        ):
+        seq_len, batch_size, _ = seq.size()
+        
+        state = self.model.init_hidden(batch_size=batch_size)
+        outs = []
+
+        for j in range(seq_len):
+            if teacher_forcing:
+                _input = seq[j, :, :].to(self.device)
+                out, state = self.model.forward(_input, interaction, state)
+            else:
+                out, state = self.model.forward(out, interaction, state)
+            outs.append(out)
+
+        outs = torch.stack(outs).to(self.device)
+        
+        single_loss = self.loss_function(outs, label)
+        single_loss.backward()
+        self.optimizer.step()
+        
+        with torch.no_grad():
+            single_losses += single_loss
+            
+        return single_losses    
+
     def plot_losses(self, losses, plot_path):
         fig = plt.figure()
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
@@ -129,7 +143,6 @@ class LSTM_Trainer():
         axes.set_xlabel('epochs')
         axes.set_ylabel('loss')
         axes.set_title('History of MSELoss during training')
-
         
         plt.savefig(f'{plot_path}_losses.png')
         plt.savefig(f'{plot_path}_losses.pdf')
