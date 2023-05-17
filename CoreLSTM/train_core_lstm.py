@@ -13,7 +13,7 @@ from tqdm import tqdm
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -111,7 +111,7 @@ class LSTM_Trainer():
 
             with torch.no_grad():
                 ep_loss = single_losses.clone().detach() 
-                avg_loss = ep_loss / len(dataloader)
+                avg_loss = ep_loss / (len(dataloader) * batch_size)
 
                 # save loss of epoch
                 losses.append(avg_loss.item())
