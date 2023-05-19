@@ -10,10 +10,16 @@ from Data_Preparation.data_preparation import Preprocessor
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, interaction_paths, n_out=18, use_distances_and_motor=True, transform=None):
+    def __init__(self, 
+                 interaction_paths, 
+                 n_out=18, 
+                 use_distances_and_motor=True, 
+                 transform=None):
         """
         Args:
-            interaction_paths (dict): Labels with paths to the preprocessed csv files for each interaction
+            interaction_paths (dict)      : Labels with paths to the preprocessed csv files for each interaction
+            n_out (int)                   : Number of lstm output features
+            use_distances_and_motor (bool): Flag indicating to use additional input features
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.interaction_paths = interaction_paths

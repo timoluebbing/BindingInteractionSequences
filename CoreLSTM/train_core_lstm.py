@@ -19,6 +19,7 @@ sys.path.append(laptop_dir)
 from CoreLSTM.core_lstm import CORE_NET
 from Data_Preparation.data_preparation import Preprocessor
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
+from Data_Preparation.interaction_renderer import Interaction_Renderer
 
 
 class LSTM_Trainer():
@@ -86,11 +87,11 @@ class LSTM_Trainer():
                 seq = seq.permute(1,0,2)
                 label = label.permute(1,0,2)
                 
-                single_losses = self.train_single_sequence(seq, 
-                                                           label, 
-                                                           interaction, 
-                                                           single_losses,
-                                                           teacher_forcing)
+                _, single_losses = self.train_single_sequence(seq, 
+                                                              label, 
+                                                              interaction, 
+                                                              single_losses,
+                                                              teacher_forcing)
 
             with torch.no_grad():
                 ep_loss = single_losses.clone().detach() 
@@ -133,7 +134,7 @@ class LSTM_Trainer():
         with torch.no_grad():
             single_losses += single_loss
             
-        return single_losses    
+        return outs, single_losses    
 
     def plot_losses(self, losses, plot_path):
         fig = plt.figure()
@@ -154,7 +155,7 @@ class LSTM_Trainer():
         print(f'Model was saved in: {path}')
 
 
-def main():
+def main(train=False):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -210,11 +211,50 @@ def main():
                            independent_feat=n_independent)
 
     # Train LSTM
-    losses = trainer.train(epochs, dataloader, model_save_path)
-    loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}.pt"
-    trainer.plot_losses(losses, loss_path)
-    torch.save(losses, loss_path)
+    if train:
+        losses = trainer.train(epochs, dataloader, model_save_path)
+        loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}.pt"
+        trainer.plot_losses(losses, loss_path)
+        torch.save(losses, loss_path)
     
+    
+    # Check prediction for one example with renderer
+    example = next(iter(dataloader))
+    seq, label, interaction = example
+    seq, label, interaction = seq.to(trainer.device), label.to(trainer.device), interaction.to(trainer.device)
+    interaction = interaction.to(torch.int64)
+    
+    seq = seq.permute(1,0,2)
+    label = label.permute(1,0,2)
+    seq_len, batch_size, num_features = seq.size()
+    
+    model = trainer.model
+    
+    model.load_state_dict(torch.load(model_save_path))
+    model.eval()
+    
+    state = model.init_hidden(batch_size=batch_size)
+    
+    outs = []
+    
+    for j in range(seq_len):
+        _input = seq[j, :, :].to(trainer.device)
+        # print(f"input shape step {j}: {_input.shape}")
+        out, state = model.forward(input_seq=_input, interaction_label=interaction, state=state)
+        outs.append(out)
+        
+    outs = torch.stack(outs).to(trainer.device)
+    print(f"Stacked outputs: {outs.shape}")
+    
+    seq_index = 1
+    print(interaction)
+    output_sequence = outs[:, seq_index, :]
+    i = str(interaction[seq_index].item())
+    print(output_sequence.shape)
+    print(i)
+    
+    renderer = Interaction_Renderer(i, tensor=output_sequence)
+    renderer.render()
     
 if __name__ == '__main__':
     main()

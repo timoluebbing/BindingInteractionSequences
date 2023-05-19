@@ -9,7 +9,7 @@
 - Preprocessed Daten 3 * 4 features pro frame (position und orientierung)
 - Input shape der Daten besprechen
 - Ist das Trainieren des LSTM am Anfang ohne Binding Matrix usw ohne Active Tuning oder mit? -> ohne AT
-# Neu
+### Neu
 - Impact force in Interaktion C besprechen (solange der Ball am Actor hängt feuert der hohe Werte raus)
 
 ## Bis zum nächten Meeting
@@ -24,11 +24,6 @@
 - [x] Impact force und motor force normalisieren? Wie -> auf -1,1 über alle Daten (nur die ungleich 0 normalisieren, zum abs max normalisieren, check ob 0 0 bleibt)
 - [x] event codes auch für batchsize > 1
 - [ ] teacher forcing flag
-- [ ] renderer for prediction
-- [ ] Train in kleinere Funktionen aufteilen
+- [x] renderer for prediction
+- [x] Train in kleinere Funktionen aufteilen
 - [ ] Dataset class für aufteilung in train, val und test vorbereiten
-
-## Wie gehts danach weiter
-- [ ] LSTM definieren
-- [ ] MLP für interaction characteristics vector -> concat with other input to LSTM
-- [ ] Training and testing classes for LSTM
