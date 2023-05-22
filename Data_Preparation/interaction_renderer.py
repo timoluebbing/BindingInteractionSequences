@@ -11,7 +11,7 @@ from Data_Preparation.data_preparation import Preprocessor
 
 class Interaction_Renderer():
     
-    def __init__(self, interaction, path=None, tensor=None):
+    def __init__(self, interaction, path=None, in_tensor=None, out_tensor=None):
         self.path = path
         self.fps = 30
         self.max_fps = 201
@@ -19,9 +19,11 @@ class Interaction_Renderer():
         self.width = 1000
         self.height = 500
         self.black, self.white, self.red = (0, 0, 0), (255, 255, 255), (255, 0, 0)
+        self.blue, self.green = (0, 0, 255), (0, 255, 0)
         if path:
             self.df = pd.read_csv(path, sep=',')
-        self.tensor_output = tensor
+        self.tensor_output = out_tensor
+        self.tensor_input = in_tensor
         self.interaction = interaction
     
     ########################################################################
@@ -55,30 +57,49 @@ class Interaction_Renderer():
     # Render predicted output sequence from torch tensor
     ########################################################################
     def load_positions_at_frame_tensor(self, frame):
-        row = self.tensor_output[frame, :].tolist()
-        xs = row[::6]                        # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
-        xs = [x * self.width for x in xs]
-        ys = row[1::6]
-        ys = [y * self.height for y in ys]
-        sin = row[2::6]
-        cos = row[3::6]
-        return xs, ys, sin, cos
+        row_in = self.tensor_input[frame, :].tolist()
+        row_out = self.tensor_output[frame, :].tolist()
+        
+        xs_in, xs_out = row_in[::6], row_out[::6]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
+        xs_in = [x * self.width for x in xs_in]
+        xs_out = [x * self.width for x in xs_out]
+        
+        ys_in, ys_out = row_in[1::6], row_out[1::6]
+        ys_in = [y * self.height for y in ys_in]
+        ys_out = [y * self.height for y in ys_out]
+        
+        sin_in, sin_out = row_in[2::6], row_out[2::6]
+        cos_in, cos_out = row_in[3::6], row_out[3::6]
+        return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
+    
+    def draw_text(self):
+        my_font = pygame.font.SysFont('Arial', 50)
+        legend_font = pygame.font.SysFont('Arial', 25)
+        text = my_font.render(self.interaction, False, self.black)
+        legend0 = legend_font.render("Input", False, self.black)
+        legend1 = legend_font.render("Output", False, self.green)
+        self.screen.blit(text, (30, 30))
+        self.screen.blit(legend0, (self.width - 120, 20))
+        self.screen.blit(legend1, (self.width - 120, 50))
     
     def draw_output(self, frame):
         self.screen.fill(self.white)
-
-        my_font = pygame.font.SysFont('Arial', 50)
-        text = my_font.render(self.interaction, False, self.black)
-        self.screen.blit(text, (30, 30))
+        self.draw_text()
         
         frame_mod =  frame % self.max_fps_out
+        radius_in = 8
+        radius_out = 10
         
-        xs, ys, sin, cos = self.load_positions_at_frame_tensor(frame_mod)
-        for x, y, sin, cos in zip(xs, ys, sin, cos):
-            pygame.draw.circle(self.screen, self.black, (x, y), 10)
-            line_x = x + cos * 10
-            line_y = y + sin * 10
-            pygame.draw.line(self.screen, self.red, (x, y), (line_x, line_y), 2)
+        xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out = self.load_positions_at_frame_tensor(frame_mod)
+        for x_in, y_in, s_in, c_in, x_out, y_out, s_out, c_out in zip(xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out):
+            pygame.draw.circle(self.screen, self.black, (x_in, y_in), radius_in)
+            pygame.draw.circle(self.screen, self.green, (x_out, y_out), radius_out)
+            line_x_in = x_in + c_in * radius_in
+            line_y_in = y_in + s_in * radius_in
+            pygame.draw.line(self.screen, self.red, (x_in, y_in), (line_x_in, line_y_in), 2)
+            line_x_out = x_out + c_out * radius_out
+            line_y_out = y_out + s_out * radius_out
+            pygame.draw.line(self.screen, self.blue, (x_out, y_out), (line_x_out, line_y_out), 2)
            
            
     def render(self):

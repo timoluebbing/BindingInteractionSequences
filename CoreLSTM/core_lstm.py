@@ -79,7 +79,7 @@ class CORE_NET(nn.Module):
                                   num_classes=self.num_interactions).to(self.device)
         one_hot_vector = one_hot_vector.to(torch.float32)
         
-        interaction_code = self.event_codes(one_hot_vector)
+        interaction_code = F.relu(self.event_codes(one_hot_vector))
         # print(interaction_code)
         # print(input_seq.shape)
         

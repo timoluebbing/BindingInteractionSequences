@@ -8,6 +8,8 @@ from torch import nn
 import matplotlib.pyplot as plt
 import random
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import OneCycleLR, CyclicLR
+from torch.optim import Adam, AdamW
 
 from tqdm import tqdm
 import sys
@@ -35,7 +37,8 @@ class LSTM_Trainer():
             betas, 
             weight_decay, 
             batch_size, 
-            hidden_num, 
+            hidden_num,
+            teacher_forcing_ratio, 
             layer_norm, 
             num_dim, 
             num_feat,
@@ -52,12 +55,24 @@ class LSTM_Trainer():
         )
         self.batch_size = batch_size
         self.loss_function = loss_function
-        self.optimizer = torch.optim.Adam(
+        self.teacher_forcing_ratio = teacher_forcing_ratio
+        
+        self.optimizer2 = Adam(
             self.model.parameters(), 
             lr=learning_rate, 
             betas=betas, 
             weight_decay=weight_decay
         )
+        
+        self.optimizer = AdamW(
+            params=self.model.parameters(),
+            lr=learning_rate,
+            betas=betas,
+            weight_decay=weight_decay
+        )
+        
+        # Vielleicht in Zukunft
+        # self.lr_scheduler = CyclicLR(...)
 
         print('Initialized model!')
         print(self.model)
@@ -68,7 +83,6 @@ class LSTM_Trainer():
               epochs, 
               dataloader,         
               save_path, 
-              teacher_forcing=True, 
         ):
 
         losses = []
@@ -90,50 +104,53 @@ class LSTM_Trainer():
                 _, single_losses = self.train_single_sequence(seq, 
                                                               label, 
                                                               interaction, 
-                                                              single_losses,
-                                                              teacher_forcing)
+                                                              single_losses)
 
             with torch.no_grad():
-                ep_loss = single_losses.clone().detach() 
+                ep_loss = single_losses.clone().item()
                 avg_loss = ep_loss / (len(dataloader) * self.batch_size)
-                print(f'Epoch: {ep:1} - Avg. Loss: {avg_loss.item():10.8f} - Epoch Loss: {ep_loss.item():8.4f}')
+                print(f'Epoch: {ep:1} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f}')
 
                 # save loss of epoch
-                losses.append(avg_loss.item())
+                losses.append(ep_loss)
 
         self.save_model(save_path)
 
         return losses
 
     def train_single_sequence(self, 
-                       seq, 
-                       label, 
-                       interaction, 
-                       single_losses,
-                       teacher_forcing=False
+                              seq, 
+                              label, 
+                              interaction, 
+                              single_losses
         ):
         seq_len, batch_size, _ = seq.size()
-        
+
         state = self.model.init_hidden(batch_size=batch_size)
         outs = []
 
+        use_teacher_forcing = random.random() < self.teacher_forcing_ratio
+        closed_loop_input = seq[0, :, :].squeeze()
+        
         for j in range(seq_len):
-            if teacher_forcing:
-                _input = seq[j, :, :].to(self.device)
+            if use_teacher_forcing:
+                _input = seq[j, :, :]
                 out, state = self.model.forward(_input, interaction, state)
             else:
-                out, state = self.model.forward(out, interaction, state)
+                out, state = self.model.forward(closed_loop_input, interaction, state)
+                closed_loop_input = out
+                
             outs.append(out)
 
-        outs = torch.stack(outs).to(self.device)
-        
+        outs = torch.stack(outs)
+
         single_loss = self.loss_function(outs, label)
         single_loss.backward()
         self.optimizer.step()
-        
+
         with torch.no_grad():
             single_losses += single_loss
-            
+
         return outs, single_losses    
 
     def plot_losses(self, losses, plot_path):
@@ -146,7 +163,7 @@ class LSTM_Trainer():
         axes.set_title('History of MSELoss during training')
         
         plt.savefig(f'{plot_path}_losses.png')
-        plt.savefig(f'{plot_path}_losses.pdf')
+        #plt.savefig(f'{plot_path}_losses.pdf')
         plt.show()
 
 
@@ -168,24 +185,29 @@ def main(train=False):
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
-    batch_size = 20
+    batch_size = 120
 
-    dataset = TimeSeriesDataset(interaction_paths)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
+    dataloader = DataLoader(dataset, 
+                            batch_size=batch_size, 
+                            pin_memory=True,
+                            #num_workers=8,
+                            shuffle=True)
     
     print(f"Number of samples: {len(dataset)}")
     
     
     ##### Model parameters #####
-    epochs = 100
+    epochs = 200
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.001
-    weight_decay = 0.9
+    weight_decay = 0
     betas = (0.9, 0.999)
+    teacher_forcing_ratio = 1
     
-    hidden_num = 256
+    hidden_num = 360
     layer_norm = True
 
     n_dim = 6
@@ -194,6 +216,7 @@ def main(train=False):
     
     model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
+    model_name += f'_tfr{teacher_forcing_ratio}'
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
@@ -205,6 +228,7 @@ def main(train=False):
                            weight_decay=weight_decay,
                            batch_size=batch_size,
                            hidden_num=hidden_num,
+                           teacher_forcing_ratio=teacher_forcing_ratio,
                            layer_norm=layer_norm,
                            num_dim=n_dim,
                            num_feat=n_features,
@@ -249,11 +273,12 @@ def main(train=False):
     seq_index = 1
     print(interaction)
     output_sequence = outs[:, seq_index, :]
+    input_sequence = seq[:, seq_index, :]
     i = str(interaction[seq_index].item())
     print(output_sequence.shape)
     print(i)
     
-    renderer = Interaction_Renderer(i, tensor=output_sequence)
+    renderer = Interaction_Renderer(i, in_tensor=input_sequence, out_tensor=output_sequence)
     renderer.render()
     
 if __name__ == '__main__':

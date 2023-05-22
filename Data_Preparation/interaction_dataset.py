@@ -23,7 +23,7 @@ class TimeSeriesDataset(Dataset):
                  seed=0):
         """
         Custom dataset class for interaction sequences. If train, validate and test flags are all False, the whole dataset
-        is returned.
+        is returned (default).
         
         Args:
             interaction_paths (dict)      : Labels with paths to the preprocessed csv files for each interaction
