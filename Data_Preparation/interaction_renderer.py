@@ -102,7 +102,7 @@ class Interaction_Renderer():
             pygame.draw.line(self.screen, self.blue, (x_out, y_out), (line_x_out, line_y_out), 2)
            
            
-    def render(self):
+    def render(self, loops=1):
         
         pygame.init()
         pygame.display.set_caption(f'Sequence: {self.interaction}')
@@ -111,8 +111,12 @@ class Interaction_Renderer():
         
         run = True
         frame = 0
+        current_loop = 0
         
         while run:
+            
+            if current_loop == loops:
+                break
             
             for event in pygame.event.get():
                 # Close window
@@ -128,11 +132,15 @@ class Interaction_Renderer():
             self.clock.tick(self.fps)
             frame += 1
             
+            if self.tensor_input is not None and frame % self.max_fps_out == 0:
+                current_loop += 1
+            
             pygame.display.update()
         
         pygame.quit()
         
-
+    def close(self):
+        pygame.quit()
 
 def main(interaction='A'):
     
@@ -143,12 +151,12 @@ def main(interaction='A'):
     renderer = Interaction_Renderer(interaction, path=path)
     # renderer.render()
     
-    df = prepro.load_preprocessed_dataframe(path)
-    df = df.iloc[:, :(3*6)] # shape like output
-    tensor_data = prepro.dataframe_to_tensor(df)
-    output_renderer = Interaction_Renderer(interaction, tensor=tensor_data)
+    # df = prepro.load_preprocessed_dataframe(path)
+    # df = df.iloc[:, :(3*6)] # shape like output
+    # tensor_data = prepro.dataframe_to_tensor(df)
+    # output_renderer = Interaction_Renderer(interaction, tensor=tensor_data)
     
-    output_renderer.render()    
+    # output_renderer.render()    
     
 if __name__ == "__main__":
     main('A')

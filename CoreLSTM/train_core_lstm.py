@@ -10,6 +10,7 @@ import random
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import OneCycleLR, CyclicLR
 from torch.optim import Adam, AdamW
+from torch.nn import PairwiseDistance
 
 from tqdm import tqdm
 import sys
@@ -138,7 +139,11 @@ class LSTM_Trainer():
                 out, state = self.model.forward(_input, interaction, state)
             else:
                 out, state = self.model.forward(closed_loop_input, interaction, state)
-                closed_loop_input = out
+                # concat motor forces and distances to output
+                distances = self.calculate_new_distances(out)
+                motor_force = seq[j+1, :, 18:20].squeeze() if j < seq_len-1 else seq[0,:,18:20]
+                closed_loop_input = torch.cat([out, motor_force, distances], dim=1)
+                
                 
             outs.append(out)
 
@@ -153,6 +158,19 @@ class LSTM_Trainer():
 
         return outs, single_losses    
 
+    def calculate_new_distances(self, out: torch.Tensor):
+        # shape out: [seq_len=1, batch_size, features]
+        t = out.squeeze()
+        a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
+        
+        dist = PairwiseDistance(p=2)
+        dis_a1_a2 = dist(a1, a2)
+        dis_a1_b  = dist(a1, b)
+        dis_b_a2  = dist(b, a2)
+        
+        return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
+        
+    
     def plot_losses(self, losses, plot_path):
         fig = plt.figure()
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
@@ -170,7 +188,43 @@ class LSTM_Trainer():
     def save_model(self, path):
         torch.save(self.model.state_dict(), path)
         print(f'Model was saved in: {path}')
-
+    
+    def evaluate_model_with_renderer(self, dataloader, model_save_path, n_samples=4):
+        
+        example = next(iter(dataloader))
+        seq, label, interaction = example
+        seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
+        interaction = interaction.to(torch.int64)
+        
+        seq = seq.permute(1,0,2)
+        label = label.permute(1,0,2)
+        seq_len, batch_size, num_features = seq.size()
+        
+        model = self.model
+        model.load_state_dict(torch.load(model_save_path))
+        model.eval()
+        
+        state = model.init_hidden(batch_size=batch_size)
+        outs = []
+        
+        for j in range(seq_len):
+            _input = seq[j, :, :].to(self.device)
+            # print(f"input shape step {j}: {_input.shape}")
+            out, state = model.forward(input_seq=_input, interaction_label=interaction, state=state)
+            outs.append(out)
+            
+        outs = torch.stack(outs).to(self.device)
+        
+        for i in range(n_samples):
+            seq_index = i
+            output_sequence = outs[:, seq_index, :]
+            input_sequence = seq[:, seq_index, :]
+            int_label = str(interaction[seq_index].item())
+            
+            renderer = Interaction_Renderer(int_label, in_tensor=input_sequence, out_tensor=output_sequence)
+            renderer.render(loops=1)
+            renderer.close()
+    
 
 def main(train=False):
     
@@ -185,7 +239,7 @@ def main(train=False):
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
-    batch_size = 120
+    batch_size = 180
 
     dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
     dataloader = DataLoader(dataset, 
@@ -198,11 +252,11 @@ def main(train=False):
     
     
     ##### Model parameters #####
-    epochs = 200
+    epochs = 300
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
-    lr = 0.001
+    lr = 0.0001
     weight_decay = 0
     betas = (0.9, 0.999)
     teacher_forcing_ratio = 1
@@ -214,7 +268,7 @@ def main(train=False):
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     
-    model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{epochs}"
+    model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
     model_name += f'_tfr{teacher_forcing_ratio}'
     
@@ -243,43 +297,7 @@ def main(train=False):
     
     
     # Check prediction for one example with renderer
-    example = next(iter(dataloader))
-    seq, label, interaction = example
-    seq, label, interaction = seq.to(trainer.device), label.to(trainer.device), interaction.to(trainer.device)
-    interaction = interaction.to(torch.int64)
-    
-    seq = seq.permute(1,0,2)
-    label = label.permute(1,0,2)
-    seq_len, batch_size, num_features = seq.size()
-    
-    model = trainer.model
-    
-    model.load_state_dict(torch.load(model_save_path))
-    model.eval()
-    
-    state = model.init_hidden(batch_size=batch_size)
-    
-    outs = []
-    
-    for j in range(seq_len):
-        _input = seq[j, :, :].to(trainer.device)
-        # print(f"input shape step {j}: {_input.shape}")
-        out, state = model.forward(input_seq=_input, interaction_label=interaction, state=state)
-        outs.append(out)
-        
-    outs = torch.stack(outs).to(trainer.device)
-    print(f"Stacked outputs: {outs.shape}")
-    
-    seq_index = 1
-    print(interaction)
-    output_sequence = outs[:, seq_index, :]
-    input_sequence = seq[:, seq_index, :]
-    i = str(interaction[seq_index].item())
-    print(output_sequence.shape)
-    print(i)
-    
-    renderer = Interaction_Renderer(i, in_tensor=input_sequence, out_tensor=output_sequence)
-    renderer.render()
+    trainer.evaluate_model_with_renderer(dataloader, model_save_path, n_samples=10)
     
 if __name__ == '__main__':
     main()
