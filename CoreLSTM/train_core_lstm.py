@@ -1,7 +1,3 @@
-"""
-Author: Kaltenberger
-franziska.kaltenberger@student.uni-tuebingen.de
-"""
 
 import torch 
 from torch import nn
@@ -90,7 +86,7 @@ class LSTM_Trainer():
 
         for ep in range(epochs):
 
-            single_losses = torch.tensor([0.0], device=self.device) 
+            single_losses = torch.tensor([0.0], device=self.device)
 
             self.model.zero_grad()
             self.optimizer.zero_grad()
@@ -144,7 +140,6 @@ class LSTM_Trainer():
                 motor_force = seq[j+1, :, 18:20].squeeze() if j < seq_len-1 else seq[0,:,18:20]
                 closed_loop_input = torch.cat([out, motor_force, distances], dim=1)
                 
-                
             outs.append(out)
 
         outs = torch.stack(outs)
@@ -189,6 +184,35 @@ class LSTM_Trainer():
         torch.save(self.model.state_dict(), path)
         print(f'Model was saved in: {path}')
     
+    def evaluate(self, dataloader):
+        
+        loss = torch.tensor([0.0], device=self.device)
+        self.model.eval()
+        
+        with torch.no_grad():
+            for seq, label, interaction in tqdm(dataloader):
+                    
+                seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
+                interaction = interaction.to(torch.int64)
+                seq = seq.permute(1,0,2)
+                label = label.permute(1,0,2)
+
+                seq_len, batch_size, num_features = seq.size()
+        
+                state = self.model.init_hidden(batch_size=batch_size)
+                outs = []
+                
+                for j in range(seq_len):
+                    _input = seq[j, :, :].to(self.device)
+                    out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
+                    outs.append(out)
+                    
+                outs = torch.stack(outs).to(self.device)
+                
+                single_loss = self.loss_function(outs, label)
+                loss += single_loss
+        
+                
     def evaluate_model_with_renderer(self, dataloader, model_save_path, n_samples=4):
         
         example = next(iter(dataloader))
@@ -224,80 +248,3 @@ class LSTM_Trainer():
             renderer = Interaction_Renderer(int_label, in_tensor=input_sequence, out_tensor=output_sequence)
             renderer.render(loops=1)
             renderer.close()
-    
-
-def main(train=False):
-    
-    interactions = ['A', 'B', 'C', 'D']
-    interactions_num = [0, 1, 2, 3]
-    
-    paths = [
-        f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
-        for interaction in interactions
-    ]
-    interaction_paths = dict(zip(interactions_num, paths))
-    print(interaction_paths)
-    
-    ##### Dataset and DataLoader #####
-    batch_size = 180
-
-    dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
-    dataloader = DataLoader(dataset, 
-                            batch_size=batch_size, 
-                            pin_memory=True,
-                            #num_workers=8,
-                            shuffle=True)
-    
-    print(f"Number of samples: {len(dataset)}")
-    
-    
-    ##### Model parameters #####
-    epochs = 300
-    
-    mse_loss = nn.MSELoss()
-    criterion = mse_loss
-    lr = 0.0001
-    weight_decay = 0
-    betas = (0.9, 0.999)
-    teacher_forcing_ratio = 1
-    
-    hidden_num = 360
-    layer_norm = True
-
-    n_dim = 6
-    n_features = 3
-    n_independent = 5 # 2 motor + 3 distances 
-    
-    model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
-    model_name += '_lnorm' if layer_norm else ''
-    model_name += f'_tfr{teacher_forcing_ratio}'
-    
-    model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    
-    prepro = Preprocessor(num_features=n_features, num_dimensions=n_dim)
-    
-    trainer = LSTM_Trainer(loss_function=criterion,
-                           learning_rate=lr,
-                           betas=betas,
-                           weight_decay=weight_decay,
-                           batch_size=batch_size,
-                           hidden_num=hidden_num,
-                           teacher_forcing_ratio=teacher_forcing_ratio,
-                           layer_norm=layer_norm,
-                           num_dim=n_dim,
-                           num_feat=n_features,
-                           independent_feat=n_independent)
-
-    # Train LSTM
-    if train:
-        losses = trainer.train(epochs, dataloader, model_save_path)
-        loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}.pt"
-        trainer.plot_losses(losses, loss_path)
-        torch.save(losses, loss_path)
-    
-    
-    # Check prediction for one example with renderer
-    trainer.evaluate_model_with_renderer(dataloader, model_save_path, n_samples=10)
-    
-if __name__ == '__main__':
-    main()

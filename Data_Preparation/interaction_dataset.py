@@ -7,6 +7,7 @@ from torch.utils.data import Dataset, DataLoader
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
 sys.path.append(laptop_dir)
 from Data_Preparation.data_preparation import Preprocessor
+from torch.utils.data import random_split
 
 
 class TimeSeriesDataset(Dataset):
@@ -15,12 +16,7 @@ class TimeSeriesDataset(Dataset):
                  n_out=18, 
                  use_distances_and_motor=True, 
                  transform=None,
-                 num_samples=1200,
-                 split=(0.7, 0.15, 0.15),
-                 train=False,
-                 validate=False,
-                 test=False,
-                 seed=0):
+                 num_samples=1200):
         """
         Custom dataset class for interaction sequences. If train, validate and test flags are all False, the whole dataset
         is returned (default).
@@ -38,9 +34,6 @@ class TimeSeriesDataset(Dataset):
         self.n_out = n_out
         self.use_distances_and_motor = use_distances_and_motor
         self.num_samples = num_samples
-        self.split = split
-        self.train, self.validate, self.test = train, validate, test
-        self.seed = seed
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.prepro = Preprocessor(num_features=3, num_dimensions=6)
 
@@ -72,26 +65,10 @@ class TimeSeriesDataset(Dataset):
         return sequence, label, interaction
     
     def _load_interactions(self):
-        
-        train_percent, val_percent, test_percent = self.split
-        samples_per_interaction = int(self.num_samples / len(self.interaction_paths))
-        
+                
         for interaction, path in self.interaction_paths.items():
                 print(f"Loading interaction {interaction} from {path}")
                 interaction_data = self.prepro.get_LSTM_data_interaction(path, self.use_distances_and_motor)
-                
-                # Das ganze hier kann auch noch in der get_LSTM_data_interaction 
-                # function versteckt werden...
-                train_end = int(samples_per_interaction*train_percent)
-                val_end = int(samples_per_interaction - (samples_per_interaction*test_percent))
-                
-                if self.train:
-                    interaction_data = interaction_data[:train_end]
-                elif self.validate:
-                    interaction_data = interaction_data[train_end:val_end]
-                elif self.test:
-                    interaction_data = interaction_data[val_end:]
-                    
                 print(interaction_data.shape, end='\n\n')
                 
                 num_sequences = len(interaction_data)
@@ -102,6 +79,7 @@ class TimeSeriesDataset(Dataset):
     
 def main():
     
+    seed = 0
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
     
@@ -113,14 +91,15 @@ def main():
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
-    train_dataset = TimeSeriesDataset(interaction_paths, train=True)
+    dataset = TimeSeriesDataset(interaction_paths)
+    generator = torch.Generator().manual_seed(seed)
+    
+    train_dataset, val_dataset, test_dataset = random_split(dataset, [0.7, 0.15, 0.15], generator)
+    
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    
-    val_dataset = TimeSeriesDataset(interaction_paths, validate=True)
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
     
-    test_dataset = TimeSeriesDataset(interaction_paths, test=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)    
     
     print(f"Number of train samples:     {len(train_dataset)}")
     print(f"Number of valiation samples: {len(val_dataset)}")
