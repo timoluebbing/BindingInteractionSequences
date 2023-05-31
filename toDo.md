@@ -11,8 +11,6 @@
 - Ist das Trainieren des LSTM am Anfang ohne Binding Matrix usw ohne Active Tuning oder mit? -> ohne AT
 ### Neu
 - Impact force in Interaktion C besprechen (solange der Ball am Actor hängt feuert der hohe Werte raus)
-- Weight decay .95? 
-- Wie soll open loop funktionieren, wenn input shape (23+4) nicht gleich output shape (18(+4)) ist? 
 - Ist der Optimizer.step aufruf an der richtigen Stelle? -> beides ausprobieren
 
 ## Bis zum nächten Meeting
@@ -22,7 +20,6 @@
 - [x] collision force, siehe arbiter class
 - [x] Costom dataset class 
 - [x] Fix: All interactions in custom dataset class
-### Neu
 - [x] Force ball wenn er los fliegt (motorcode unabhängig auch ins lstm rein)
 - [x] Force auch ins lstm
 - [x] Impact force und motor force normalisieren? Wie -> auf -1,1 über alle Daten (nur die ungleich 0 normalisieren, zum abs max normalisieren, check ob 0 0 bleibt)
@@ -32,6 +29,7 @@
 - [x] Dataset class für aufteilung in train, val und test vorbereiten
 - [x] teacher forcing flag and closed loop training
 - [x] torch.util.data.random_split
+### Neu
 - [x] evaluate function
 - [x] main train in new file
 - [ ] optimizer step pro epoch ausprobieren
