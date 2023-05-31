@@ -35,7 +35,7 @@ class LSTM_Trainer():
             weight_decay, 
             batch_size, 
             hidden_num,
-            teacher_forcing_ratio, 
+            teacher_forcing_steps, 
             layer_norm, 
             num_dim, 
             num_feat,
@@ -52,7 +52,7 @@ class LSTM_Trainer():
         )
         self.batch_size = batch_size
         self.loss_function = loss_function
-        self.teacher_forcing_ratio = teacher_forcing_ratio
+        self.teacher_forcing_steps = teacher_forcing_steps
         
         self.optimizer2 = Adam(
             self.model.parameters(), 
@@ -125,22 +125,23 @@ class LSTM_Trainer():
 
         state = self.model.init_hidden(batch_size=batch_size)
         outs = []
-
-        use_teacher_forcing = random.random() < self.teacher_forcing_ratio
-        closed_loop_input = seq[0, :, :].squeeze()
         
         for j in range(seq_len):
-            if use_teacher_forcing:
+            
+            if j < self.teacher_forcing_steps:
                 _input = seq[j, :, :]
-                out, state = self.model.forward(_input, interaction, state)
+                output, state = self.model.forward(_input, interaction, state)
             else:
-                out, state = self.model.forward(closed_loop_input, interaction, state)
-                # concat motor forces and distances to output
-                distances = self.calculate_new_distances(out)
-                motor_force = seq[j+1, :, 18:20].squeeze() if j < seq_len-1 else seq[0,:,18:20]
-                closed_loop_input = torch.cat([out, motor_force, distances], dim=1)
+                # concat motor forces and distances to previous output
+                distances = self.calculate_new_distances(output)
+                motor_force = seq[j, :, 18:20].squeeze() # if j < seq_len-1 else seq[0,:,18:20]
+                output = torch.cat([output, motor_force, distances], dim=1)
                 
-            outs.append(out)
+                # Closed loop lstm forward pass without teacherforcing
+                output, state = self.model.forward(output, interaction, state)
+                
+                
+            outs.append(output)
 
         outs = torch.stack(outs)
 
@@ -173,6 +174,7 @@ class LSTM_Trainer():
         axes.grid(True)
         axes.set_xlabel('epochs')
         axes.set_ylabel('loss')
+        axes.set_yscale('log')
         axes.set_title('History of MSELoss during training')
         
         plt.savefig(f'{plot_path}_losses.png')
@@ -211,6 +213,12 @@ class LSTM_Trainer():
                 
                 single_loss = self.loss_function(outs, label)
                 loss += single_loss
+                
+            ep_loss = loss.clone().item()
+            avg_loss = ep_loss / (len(dataloader) * self.batch_size)
+            print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}\n')
+                
+            return loss
         
                 
     def evaluate_model_with_renderer(self, dataloader, model_save_path, n_samples=4):

@@ -13,7 +13,7 @@
 - Impact force in Interaktion C besprechen (solange der Ball am Actor hängt feuert der hohe Werte raus)
 - Weight decay .95? 
 - Wie soll open loop funktionieren, wenn input shape (23+4) nicht gleich output shape (18(+4)) ist? 
-- Ist der Optimizer.step aufruf an der richtigen Stelle?
+- Ist der Optimizer.step aufruf an der richtigen Stelle? -> beides ausprobieren
 
 ## Bis zum nächten Meeting
 - [x] Distancen normalisieren, (wie?, z.B. auf [0, 1]) 
@@ -30,4 +30,14 @@
 - [x] renderer for prediction
 - [x] Train in kleinere Funktionen aufteilen
 - [x] Dataset class für aufteilung in train, val und test vorbereiten
-- [ ] teacher forcing flag and closed loop training
+- [x] teacher forcing flag and closed loop training
+- [x] torch.util.data.random_split
+- [x] evaluate function
+- [x] main train in new file
+- [ ] optimizer step pro epoch ausprobieren
+- [x] random teacher forcing auf erste x steps umbauen
+- [ ] Save model with min loss instead of last epoch (wie beim boot projekt)
+- [ ] grid search hyperparameter tuning
+- [x] embedding layer für 18 input features
+- [ ] closed loop dropouts progressive (auf pretrained model)
+- [x] log scale loss plot

@@ -28,6 +28,7 @@ class CORE_NET(nn.Module):
     def __init__(
         self, 
         input_size=27, # 3*6 features + 3 distances + 2 motor response + 4 interaction code
+        embedding_size=128,
         hidden_layer_size=360,
         output_size=18, # 3*6 features
         num_interactions=4,
@@ -39,55 +40,62 @@ class CORE_NET(nn.Module):
 
         super(CORE_NET,self).__init__()
         self.input_size = input_size
+        self.embedding_size = embedding_size
         self.hidden_size = hidden_layer_size
         self.output_size = output_size
         self.layer_norm = layer_norm
         self.num_interactions = num_interactions
         
+        self.event_codes = nn.Linear(
+            in_features=self.num_interactions,
+            out_features=self.num_interactions,
+            device=self.device
+        )#.to(self.device)
+        
+        self.embedding_layer = nn.Linear(
+            in_features=self.input_size - self.num_interactions,
+            out_features=self.embedding_size,
+            device=self.device
+        )
+        
         self.lstm = nn.LSTMCell(
-            input_size=self.input_size, 
+            input_size=self.embedding_size + self.num_interactions, 
             hidden_size=self.hidden_size, 
             bias=True, 
-            #device=self.device
-            ).to(self.device)
+            device=self.device
+            )#.to(self.device)
 
         if self.layer_norm:
             self.lnorm = nn.LayerNorm(
                 self.hidden_size, 
-                # device=self.device
-            ).to(self.device)
+                device=self.device
+            )#.to(self.device)
 
         self.linear = nn.Linear(
             in_features=self.hidden_size, 
             out_features=self.output_size,  
-            #device=self.device
-        ).to(self.device)
-        
-        self.event_codes = nn.Linear(
-            in_features=self.num_interactions,
-            out_features=self.num_interactions,
-            #device=self.device
-        ).to(self.device)
+            device=self.device
+        )#.to(self.device)
 
 
     def forward(self, input_seq, interaction_label, state=None):
         
-        # Ist das der richtige Ansatz?
-        # One hot translation outside forward?
-        # interaction_label = interaction_label.to(torch.int64)
+        # One hot interaction labels to interaction codes
         one_hot_vector = F.one_hot(interaction_label, 
                                   num_classes=self.num_interactions).to(self.device)
         one_hot_vector = one_hot_vector.to(torch.float32)
-        
         interaction_code = F.relu(self.event_codes(one_hot_vector))
-        # print(interaction_code)
-        # print(input_seq.shape)
         
-        input_seq = torch.cat([input_seq, interaction_code], dim=1) # dim=1 falls shape von input [seq_len, features]
-        # print(input_seq.shape)
+        # Embedding layer (without event code)
+        input_seq = F.relu(self.embedding_layer(input_seq))
         
+        # Concat embedded code and features to one input
+        input_seq = torch.cat([input_seq, interaction_code], dim=1) # shape (batch x n_features+interaction_code)
+        
+        # LSTM forward pass
         hn, cn = self.lstm(input_seq, state)
- 
+
+        # Linear output layer with optional normalization
         if self.layer_norm:
             prediction = self.linear(self.lnorm(hn))
         else: 

@@ -9,14 +9,11 @@ laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
 sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
-from CoreLSTM.core_lstm import CORE_NET
 from CoreLSTM.train_core_lstm import LSTM_Trainer
-from Data_Preparation.data_preparation import Preprocessor
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
-from Data_Preparation.interaction_renderer import Interaction_Renderer
 
 
-def main(train=False):
+def main(train=True, validate=True, test=False):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -30,16 +27,17 @@ def main(train=False):
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
-    batch_size = 180
+    batch_size = 240
 
     dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
+    split = [0.7, 0.15, 0.15]
     
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [0.7, 0.15, 0.15], generator)
+    train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     
-    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=10, shuffle=True)
     
     print(f"Number of train samples:     {len(train_dataset)}")
     print(f"Number of valiation samples: {len(val_dataset)}")
@@ -47,14 +45,14 @@ def main(train=False):
     
     
     ##### Model parameters #####
-    epochs = 300
+    epochs = 100
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.0001
     weight_decay = 0
     betas = (0.9, 0.999)
-    teacher_forcing_ratio = 1
+    teacher_forcing_steps = 200
     
     hidden_num = 360
     layer_norm = True
@@ -65,11 +63,11 @@ def main(train=False):
     
     model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
-    model_name += f'_tfr{teacher_forcing_ratio}'
+    model_name += f'_tfs{teacher_forcing_steps}'
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
-    prepro = Preprocessor(num_features=n_features, num_dimensions=n_dim)
+    # prepro = Preprocessor(num_features=n_features, num_dimensions=n_dim)
     
     trainer = LSTM_Trainer(loss_function=criterion,
                            learning_rate=lr,
@@ -77,7 +75,7 @@ def main(train=False):
                            weight_decay=weight_decay,
                            batch_size=batch_size,
                            hidden_num=hidden_num,
-                           teacher_forcing_ratio=teacher_forcing_ratio,
+                           teacher_forcing_steps=teacher_forcing_steps,
                            layer_norm=layer_norm,
                            num_dim=n_dim,
                            num_feat=n_features,
@@ -90,6 +88,12 @@ def main(train=False):
         trainer.plot_losses(losses, loss_path)
         torch.save(losses, loss_path)
     
+    if validate:
+        loss = trainer.evaluate(val_dataloader)
+        print(loss)
+        
+    if test:
+        loss = trainer.evaluate(test_dataloader)
     
     # Check prediction for one example with renderer
     trainer.evaluate_model_with_renderer(test_dataloader, model_save_path, n_samples=10)
