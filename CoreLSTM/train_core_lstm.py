@@ -10,6 +10,7 @@ from torch.nn import PairwiseDistance
 
 from tqdm import tqdm
 import sys
+import copy
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
 sys.path.append(laptop_dir)      
@@ -76,45 +77,62 @@ class LSTM_Trainer():
         print(self.loss_function)
         print(self.optimizer)
 
-    def train(self, 
+    def train_and_validate(self, 
               epochs, 
-              dataloader,         
               save_path, 
+              train_dataloader,
+              validate=False,
+              val_dataloader=None,         
         ):
 
-        losses = []
+        train_losses = []
+        val_losses = []
+        min_loss = float('inf')
+        n_last_epochs = epochs / 10
 
-        for ep in range(epochs):
+        for epoch in range(epochs):
 
-            single_losses = torch.tensor([0.0], device=self.device)
-
-            self.model.zero_grad()
-            self.optimizer.zero_grad()
-
-            for seq, label, interaction in tqdm(dataloader):
+            ep_trn_loss = self.train_single_epoch(epoch, train_dataloader)
+            train_losses.append(ep_trn_loss)
+            
+            if validate and epoch >= epochs-n_last_epochs:
+                ep_val_loss = self.evaluate(val_dataloader)
+                val_losses.append(ep_val_loss)
                 
-                seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-                interaction = interaction.to(torch.int64)
-                seq = seq.permute(1,0,2)
-                label = label.permute(1,0,2)
-                
-                _, single_losses = self.train_single_sequence(seq, 
-                                                              label, 
-                                                              interaction, 
-                                                              single_losses)
+                if ep_val_loss < min_loss:
+                    min_loss = ep_val_loss
+                    best_model_wts = copy.deepcopy(self.model.state_dict())
+                    
+        model_state = best_model_wts if validate else self.model.state_dict()
+        self.save_model(save_path, model_state)
 
-            with torch.no_grad():
-                ep_loss = single_losses.clone().item()
-                avg_loss = ep_loss / (len(dataloader) * self.batch_size)
-                print(f'Epoch: {ep:1} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f}')
+        return train_losses, val_losses
+    
+    def train_single_epoch(self, epoch, dataloader):
+        
+        single_losses = torch.tensor([0.0], device=self.device)
 
-                # save loss of epoch
-                losses.append(ep_loss)
+        self.model.zero_grad()
+        self.optimizer.zero_grad()
 
-        self.save_model(save_path)
+        for seq, label, interaction in tqdm(dataloader):
+            
+            seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
+            interaction = interaction.to(torch.int64)
+            seq = seq.permute(1,0,2)
+            label = label.permute(1,0,2)
+            
+            _, single_losses = self.train_single_sequence(seq, 
+                                                          label, 
+                                                          interaction, 
+                                                          single_losses)
+        with torch.no_grad():
+            ep_loss = single_losses.clone().item()
+            avg_loss = ep_loss / (len(dataloader) * self.batch_size)
+            print(f'Epoch: {epoch:1} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f}')
 
-        return losses
-
+        return ep_loss
+    
     def train_single_sequence(self, 
                               seq, 
                               label, 
@@ -165,26 +183,6 @@ class LSTM_Trainer():
         dis_b_a2  = dist(b, a2)
         
         return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
-        
-    
-    def plot_losses(self, losses, plot_path):
-        fig = plt.figure()
-        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
-        axes.plot(losses, 'r')
-        axes.grid(True)
-        axes.set_xlabel('epochs')
-        axes.set_ylabel('loss')
-        axes.set_yscale('log')
-        axes.set_title('History of MSELoss during training')
-        
-        plt.savefig(f'{plot_path}_losses.png')
-        #plt.savefig(f'{plot_path}_losses.pdf')
-        plt.show()
-
-
-    def save_model(self, path):
-        torch.save(self.model.state_dict(), path)
-        print(f'Model was saved in: {path}')
     
     def evaluate(self, dataloader):
         
@@ -218,7 +216,7 @@ class LSTM_Trainer():
             avg_loss = ep_loss / (len(dataloader) * self.batch_size)
             print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}\n')
                 
-            return loss
+            return ep_loss
         
                 
     def evaluate_model_with_renderer(self, dataloader, model_save_path, n_samples=4):
@@ -256,3 +254,22 @@ class LSTM_Trainer():
             renderer = Interaction_Renderer(int_label, in_tensor=input_sequence, out_tensor=output_sequence)
             renderer.render(loops=1)
             renderer.close()
+            
+    def plot_losses(self, losses, plot_path):
+        fig = plt.figure()
+        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
+        axes.plot(losses, 'r')
+        axes.grid(True)
+        axes.set_xlabel('epochs')
+        axes.set_ylabel('loss (log scaled)')
+        axes.set_yscale('log')
+        axes.set_title('History of MSELoss during training')
+        
+        plt.savefig(f'{plot_path}_losses.png')
+        #plt.savefig(f'{plot_path}_losses.pdf')
+        plt.show()
+
+
+    def save_model(self, path, model_state):
+        torch.save(model_state, path)
+        print(f'Model was saved in: {path}')

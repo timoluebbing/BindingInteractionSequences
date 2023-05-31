@@ -13,7 +13,7 @@ from CoreLSTM.train_core_lstm import LSTM_Trainer
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=False):
+def main(train=False, validate=True, test=True):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -36,7 +36,7 @@ def main(train=True, validate=True, test=False):
     train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=10, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=10, shuffle=True)
     
     print(f"Number of train samples:     {len(train_dataset)}")
@@ -45,7 +45,7 @@ def main(train=True, validate=True, test=False):
     
     
     ##### Model parameters #####
-    epochs = 100
+    epochs = 300
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -83,20 +83,26 @@ def main(train=True, validate=True, test=False):
 
     # Train LSTM
     if train:
-        losses = trainer.train(epochs, train_dataloader, model_save_path)
-        loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}.pt"
-        trainer.plot_losses(losses, loss_path)
-        torch.save(losses, loss_path)
-    
-    if validate:
-        loss = trainer.evaluate(val_dataloader)
-        print(loss)
+        train_losses, val_losses = trainer.train_and_validate(epochs, 
+                                                              model_save_path, 
+                                                              train_dataloader, 
+                                                              validate,
+                                                              val_dataloader)
         
-    if test:
-        loss = trainer.evaluate(test_dataloader)
+        train_loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}"
+        val_loss_path   = f"CoreLSTM/testing_predictions/val_loss/{model_name}"
+        trainer.plot_losses(train_losses, train_loss_path)
+        trainer.plot_losses(val_losses,   val_loss_path)
+        # torch.save(losses, loss_path)
+        
+        if test:
+            print("Test dataset: \n")
+            _ = trainer.evaluate(test_dataloader)
     
     # Check prediction for one example with renderer
-    trainer.evaluate_model_with_renderer(test_dataloader, model_save_path, n_samples=10)
+    trainer.evaluate_model_with_renderer(test_dataloader, 
+                                         model_save_path, 
+                                         n_samples=5)
     
 if __name__ == '__main__':
     main()
