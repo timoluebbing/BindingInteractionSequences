@@ -32,10 +32,13 @@
 ### Neu
 - [x] evaluate function
 - [x] main train in new file
+- [x] optimizer step pro batch ausprobieren
 - [ ] optimizer step pro epoch ausprobieren
 - [x] random teacher forcing auf erste x steps umbauen
-- [ ] Save model with min loss instead of last epoch (wie beim boot projekt)
+- [x] Save model with min loss instead of last epoch (wie beim boot projekt)
 - [ ] grid search hyperparameter tuning
 - [x] embedding layer für 18 input features
 - [ ] closed loop dropouts progressive (auf pretrained model)
 - [x] log scale loss plot
+- [ ] lr scheduler
+- [ ] extract eval into tester class

@@ -13,7 +13,7 @@ from CoreLSTM.train_core_lstm import LSTM_Trainer
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=False, validate=True, test=True):
+def main(train=True, validate=True, test=True):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -27,7 +27,7 @@ def main(train=False, validate=True, test=True):
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
-    batch_size = 240
+    batch_size = 180
 
     dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
@@ -45,7 +45,7 @@ def main(train=False, validate=True, test=True):
     
     
     ##### Model parameters #####
-    epochs = 300
+    epochs = 400
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -53,6 +53,7 @@ def main(train=False, validate=True, test=True):
     weight_decay = 0
     betas = (0.9, 0.999)
     teacher_forcing_steps = 200
+    teacher_forcing_dropouts = True
     
     hidden_num = 360
     layer_norm = True
@@ -64,6 +65,7 @@ def main(train=False, validate=True, test=True):
     model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
     model_name += f'_tfs{teacher_forcing_steps}'
+    model_name += '_tfd' if teacher_forcing_dropouts else ''
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
@@ -76,6 +78,7 @@ def main(train=False, validate=True, test=True):
                            batch_size=batch_size,
                            hidden_num=hidden_num,
                            teacher_forcing_steps=teacher_forcing_steps,
+                           teacher_forcing_dropouts=teacher_forcing_dropouts,
                            layer_norm=layer_norm,
                            num_dim=n_dim,
                            num_feat=n_features,
@@ -100,7 +103,9 @@ def main(train=False, validate=True, test=True):
             _ = trainer.evaluate(test_dataloader)
     
     # Check prediction for one example with renderer
-    trainer.evaluate_model_with_renderer(test_dataloader, 
+    model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
+    trainer.evaluate_model_with_renderer(train_dataloader, 
+                                         # model_path,
                                          model_save_path, 
                                          n_samples=5)
     
