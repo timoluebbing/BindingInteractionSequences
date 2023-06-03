@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from numpy import random
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import OneCycleLR, CyclicLR
-from torch.optim import Adam, AdamW
+from torch.optim import Adam, AdamW, SGD
 from torch.nn import PairwiseDistance
 
 from tqdm import tqdm
@@ -70,7 +70,13 @@ class LSTM_Trainer():
             betas=betas,
             weight_decay=weight_decay
         )
-        
+
+        self.optimizer3 = SGD(
+            params=self.model.parameters(),
+            lr=learning_rate,
+            momentum=0.95,
+            weight_decay=weight_decay
+        )
         # Geht nur mit SGD, da Adam die lr selber reguliert
         # self.lr_scheduler = CyclicLR(
         #     self.optimizer,
@@ -114,6 +120,7 @@ class LSTM_Trainer():
                     
         model_state = best_model_wts if validate else self.model.state_dict()
         self.save_model(save_path, model_state)
+        print(f"Model with minimum validation loss: {min(val_losses):.6f} was saved to {save_path}\n")
 
         return train_losses, val_losses
     
@@ -140,7 +147,7 @@ class LSTM_Trainer():
         
         with torch.no_grad():
             ep_loss = single_losses.clone().item()
-            avg_loss = ep_loss / (len(dataloader) * self.batch_size)
+            avg_loss = ep_loss / 1200 # (len(dataloader) * self.batch_size)
             print(f'Epoch: {epoch:1} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f} - LR: {self.get_lr(self.optimizer):.6f}')
 
         return ep_loss

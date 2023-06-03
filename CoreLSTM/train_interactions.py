@@ -6,14 +6,14 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=True):
+def main(train=False, validate=True, test=True):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -45,7 +45,7 @@ def main(train=True, validate=True, test=True):
     
     
     ##### Model parameters #####
-    epochs = 400
+    epochs = 2000
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -53,7 +53,7 @@ def main(train=True, validate=True, test=True):
     weight_decay = 0
     betas = (0.9, 0.999)
     teacher_forcing_steps = 200
-    teacher_forcing_dropouts = True
+    teacher_forcing_dropouts = False
     
     hidden_num = 360
     layer_norm = True
@@ -104,9 +104,12 @@ def main(train=True, validate=True, test=True):
     
     # Check prediction for one example with renderer
     model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
-    trainer.evaluate_model_with_renderer(train_dataloader, 
+    current_best = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200.pt'
+    trainer.evaluate_model_with_renderer(# test_dataloader, 
+                                         train_dataloader,
                                          # model_path,
-                                         model_save_path, 
+                                         current_best,
+                                         # model_save_path, 
                                          n_samples=5)
     
 if __name__ == '__main__':

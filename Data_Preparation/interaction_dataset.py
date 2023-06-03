@@ -1,13 +1,12 @@
 import sys
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 
-
+pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)
+sys.path.append(pc_dir)
 from Data_Preparation.data_preparation import Preprocessor
-from torch.utils.data import random_split
 
 
 class TimeSeriesDataset(Dataset):
