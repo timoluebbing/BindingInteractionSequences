@@ -13,7 +13,7 @@ from CoreLSTM.train_core_lstm import LSTM_Trainer
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=False, validate=True, test=True):
+def main(train=True, validate=True, test=True):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -50,10 +50,10 @@ def main(train=False, validate=True, test=True):
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.0001
-    weight_decay = 0
+    weight_decay = 0.01
     betas = (0.9, 0.999)
     teacher_forcing_steps = 200
-    teacher_forcing_dropouts = False
+    teacher_forcing_dropouts = True
     
     hidden_num = 360
     layer_norm = True
@@ -105,11 +105,11 @@ def main(train=False, validate=True, test=True):
     # Check prediction for one example with renderer
     model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
     current_best = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200.pt'
-    trainer.evaluate_model_with_renderer(# test_dataloader, 
-                                         train_dataloader,
+    trainer.evaluate_model_with_renderer(test_dataloader, 
+                                         # train_dataloader,
                                          # model_path,
-                                         current_best,
-                                         # model_save_path, 
+                                         # current_best,
+                                         model_save_path, 
                                          n_samples=5)
     
 if __name__ == '__main__':
