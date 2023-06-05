@@ -6,14 +6,15 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
+from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=True):
+def main(train=False, validate=True, test=True, render=False):
     
     seed = 0
     interactions = ['A', 'B', 'C', 'D']
@@ -37,7 +38,7 @@ def main(train=True, validate=True, test=True):
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=10, shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=10, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
     
     print(f"Number of train samples:     {len(train_dataset)}")
     print(f"Number of valiation samples: {len(val_dataset)}")
@@ -68,49 +69,67 @@ def main(train=True, validate=True, test=True):
     model_name += '_tfd' if teacher_forcing_dropouts else ''
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    
-    # prepro = Preprocessor(num_features=n_features, num_dimensions=n_dim)
-    
-    trainer = LSTM_Trainer(loss_function=criterion,
-                           learning_rate=lr,
-                           betas=betas,
-                           weight_decay=weight_decay,
-                           batch_size=batch_size,
-                           hidden_num=hidden_num,
-                           teacher_forcing_steps=teacher_forcing_steps,
-                           teacher_forcing_dropouts=teacher_forcing_dropouts,
-                           layer_norm=layer_norm,
-                           num_dim=n_dim,
-                           num_feat=n_features,
-                           independent_feat=n_independent)
+        
 
-    # Train LSTM
     if train:
-        train_losses, val_losses = trainer.train_and_validate(epochs, 
-                                                              model_save_path, 
-                                                              train_dataloader, 
-                                                              validate,
-                                                              val_dataloader)
+        
+        trainer = LSTM_Trainer(
+            loss_function=criterion,
+            learning_rate=lr,
+            betas=betas,
+            weight_decay=weight_decay,
+            batch_size=batch_size,
+            hidden_num=hidden_num,
+            teacher_forcing_steps=teacher_forcing_steps,
+            teacher_forcing_dropouts=teacher_forcing_dropouts,
+            layer_norm=layer_norm,
+            num_dim=n_dim,
+            num_feat=n_features,
+            independent_feat=n_independent
+        )
+        
+        train_losses, val_losses = trainer.train_and_validate(
+            epochs, 
+            model_save_path, 
+            train_dataloader, 
+            validate,
+            val_dataloader
+        )
         
         train_loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}"
         val_loss_path   = f"CoreLSTM/testing_predictions/val_loss/{model_name}"
         trainer.plot_losses(train_losses, train_loss_path)
         trainer.plot_losses(val_losses,   val_loss_path)
-        # torch.save(losses, loss_path)
+
+
+    if test:
+        model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
+        current_best = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200.pt'
         
-        if test:
-            print("Test dataset: \n")
-            _ = trainer.evaluate(test_dataloader)
-    
-    # Check prediction for one example with renderer
-    model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
-    current_best = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200.pt'
-    trainer.evaluate_model_with_renderer(test_dataloader, 
-                                         # train_dataloader,
-                                         # model_path,
-                                         # current_best,
-                                         model_save_path, 
-                                         n_samples=5)
+        tester = LSTM_Tester(
+            loss_function=criterion,
+            batch_size=batch_size,
+            hidden_num=hidden_num,
+            layer_norm=layer_norm,
+            num_dim=n_dim,
+            num_feat=n_features,
+            independent_feat=n_independent,
+            # model_save_path=model_save_path, 
+            # model_save_path=model_path, 
+            model_save_path=current_best, 
+        )
+        
+        print("Test dataset: \n")
+        _ = tester.evaluate(test_dataloader)
+
+        # Check prediction for one example with renderer
+        
+        if render:
+            tester.evaluate_model_with_renderer(
+                test_dataloader, 
+                # train_dataloader,
+                n_samples=5
+            )
     
 if __name__ == '__main__':
     main()

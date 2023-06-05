@@ -113,6 +113,14 @@ class CORE_NET(nn.Module):
         batch_size = state[0].size()[0]
         return (torch.zeros(batch_size, self.hidden_size).to(self.device),
                 state[1])
+        
+    def restructure_data(self, seq, label, interaction):
+        seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
+        interaction = interaction.to(torch.int64)
+        seq = seq.permute(1,0,2)
+        label = label.permute(1,0,2)
+        return seq, label, interaction
+
 
 def main():
     

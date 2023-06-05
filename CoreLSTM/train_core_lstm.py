@@ -47,6 +47,11 @@ class LSTM_Trainer():
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
         print(f'DEVICE TrainM: {self.device}')
 
+        self.prepro = Preprocessor(
+            num_features=num_feat,
+            num_dimensions=num_dim
+        )
+        
         self.model = CORE_NET(
             input_size=num_dim*num_feat+independent_feat+4, 
             hidden_layer_size=hidden_num, 
@@ -111,7 +116,7 @@ class LSTM_Trainer():
             train_losses.append(ep_trn_loss)
             
             if validate and epoch >= epochs-n_last_epochs:
-                ep_val_loss = self.evaluate(val_dataloader)
+                ep_val_loss = self.validate(val_dataloader)
                 val_losses.append(ep_val_loss)
                 
                 if ep_val_loss < min_loss:
@@ -133,10 +138,7 @@ class LSTM_Trainer():
 
         for seq, label, interaction in tqdm(dataloader):
             
-            seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-            interaction = interaction.to(torch.int64)
-            seq = seq.permute(1,0,2)
-            label = label.permute(1,0,2)
+            seq, label, interaction = self.model.restructure_data(seq, label, interaction)
             
             _, single_losses = self.train_single_sequence(seq, 
                                                           label, 
@@ -230,7 +232,7 @@ class LSTM_Trainer():
         
         return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
     
-    def evaluate(self, dataloader):
+    def validate(self, dataloader):
         
         loss = torch.tensor([0.0], device=self.device)
         self.model.eval()
@@ -238,10 +240,7 @@ class LSTM_Trainer():
         with torch.no_grad():
             for seq, label, interaction in tqdm(dataloader):
                     
-                seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-                interaction = interaction.to(torch.int64)
-                seq = seq.permute(1,0,2)
-                label = label.permute(1,0,2)
+                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
 
                 seq_len, batch_size, num_features = seq.size()
         
@@ -263,43 +262,6 @@ class LSTM_Trainer():
             print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}\n')
                 
             return ep_loss
-        
-                
-    def evaluate_model_with_renderer(self, dataloader, model_save_path, n_samples=4):
-        
-        example = next(iter(dataloader))
-        seq, label, interaction = example
-        seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-        interaction = interaction.to(torch.int64)
-        
-        seq = seq.permute(1,0,2)
-        label = label.permute(1,0,2)
-        seq_len, batch_size, num_features = seq.size()
-        
-        model = self.model
-        model.load_state_dict(torch.load(model_save_path))
-        model.eval()
-        
-        state = model.init_hidden(batch_size=batch_size)
-        outs = []
-        
-        for j in range(seq_len):
-            _input = seq[j, :, :].to(self.device)
-            # print(f"input shape step {j}: {_input.shape}")
-            out, state = model.forward(input_seq=_input, interaction_label=interaction, state=state)
-            outs.append(out)
-            
-        outs = torch.stack(outs).to(self.device)
-        
-        for i in range(n_samples):
-            seq_index = i
-            output_sequence = outs[:, seq_index, :]
-            input_sequence = seq[:, seq_index, :]
-            int_label = str(interaction[seq_index].item())
-            
-            renderer = Interaction_Renderer(int_label, in_tensor=input_sequence, out_tensor=output_sequence)
-            renderer.render(loops=1)
-            renderer.close()
     
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:

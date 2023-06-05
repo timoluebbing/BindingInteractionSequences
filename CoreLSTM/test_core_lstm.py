@@ -1,16 +1,13 @@
 
 import torch 
 from torch import nn
+import numpy as np
 import matplotlib.pyplot as plt
 from numpy import random
-from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import OneCycleLR, CyclicLR
-from torch.optim import Adam, AdamW
-from torch.nn import PairwiseDistance
+from torch.utils.data import DataLoader, random_split
 
 from tqdm import tqdm
 import sys
-import copy
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
 sys.path.append(laptop_dir)      
@@ -29,27 +26,33 @@ class LSTM_Tester():
         
     """
 
-    def __init__(self, 
-            loss_function, 
-            batch_size, 
-            hidden_num,
-            layer_norm, 
-            num_dim, 
-            num_feat,
-            independent_feat,
-            model_save_path
-        ):
-
+    def __init__(
+        self, 
+        loss_function, 
+        batch_size, 
+        hidden_num,
+        layer_norm, 
+        num_dim, 
+        num_feat,
+        independent_feat,
+        model_save_path
+    ):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         self.loss_function = loss_function
         self.model_save_path = model_save_path
 
+        self.prepro = Preprocessor(
+            num_features=num_feat,
+            num_dimensions=num_dim
+        )
+        
         self.model = CORE_NET(
             input_size=num_dim*num_feat+independent_feat+4, 
             hidden_layer_size=hidden_num, 
             layer_norm=layer_norm
         )
+        
         self.load_model()
         
         print(f'DEVICE TrainM: {self.device}')
@@ -62,15 +65,11 @@ class LSTM_Tester():
     def evaluate(self, dataloader):
         
         loss = torch.tensor([0.0], device=self.device)
-        self.model.eval()
         
         with torch.no_grad():
             for seq, label, interaction in tqdm(dataloader):
                     
-                seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-                interaction = interaction.to(torch.int64)
-                seq = seq.permute(1,0,2)
-                label = label.permute(1,0,2)
+                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
 
                 seq_len, batch_size, num_features = seq.size()
         
@@ -84,31 +83,59 @@ class LSTM_Tester():
                     
                 outs = torch.stack(outs).to(self.device)
                 
+                outs, label = outs.permute((1,0,2)), label.permute((1,0,2))
+                
                 single_loss = self.loss_function(outs, label)
                 loss += single_loss
                 
-            ep_loss = loss.clone().item()
-            avg_loss = ep_loss / (len(dataloader) * self.batch_size)
-            print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}\n')
+            total_loss = loss.clone().item()
+            avg_loss = total_loss / (len(dataloader) * self.batch_size)
+            print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {total_loss:8.4f}\n')
                 
-            return ep_loss
+            return total_loss
+    
+    def evaluate_detailed(self, dataloader):
         
+        batch_losses = torch.tensor([0.0], device=self.device)
+        batch_losses_each_step = np.zeros(200)
+                            
+        with torch.no_grad():
+            for seq, label, interaction in tqdm(dataloader):
+                    
+                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
+
+                seq_len, batch_size, num_features = seq.size()
+        
+                state = self.model.init_hidden(batch_size=batch_size)
+                outs = []
+                batch_loss_each_step = np.zeros(200)
+                
+                for j in range(seq_len):
+                    _input = seq[j, :, :].to(self.device)
+                    out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
+                    outs.append(out)
+                    
+                    single_loss = self.loss_function(out, label[j, :, :])
+                    single_loss = single_loss.item()
+                    batch_loss_each_step[j] = single_loss
+                    
+                outs_stacked = torch.stack(outs).to(self.device)
+                batch_loss = self.loss_function(outs_stacked, label)
+                
+                batch_losses += batch_loss
+                batch_losses_each_step += batch_loss_each_step
+            
+            total_loss = batch_losses.item()
+            losses_each_step = batch_losses_each_step
+        
+        return total_loss, losses_each_step
                 
     def evaluate_model_with_renderer(self, dataloader, n_samples=4):
         
         seq, label, interaction = next(iter(dataloader))
-        
-        seq, label, interaction = seq.to(self.device), label.to(self.device), interaction.to(self.device)
-        interaction = interaction.to(torch.int64)
-        seq = seq.permute(1,0,2)
-        label = label.permute(1,0,2)
+        seq, label, interaction = self.model.restructure_data(seq, label, interaction)
         
         seq_len, batch_size, num_features = seq.size()
-        
-        # model = self.model
-        # model.load_state_dict(torch.load(model_save_path))
-        # model.eval()
-        #### -> das ist jetzt in der init drin
         
         state = self.model.init_hidden(batch_size=batch_size)
         outs = []
@@ -131,16 +158,93 @@ class LSTM_Tester():
             renderer.render(loops=1)
             renderer.close()
     
-    def plot_losses(self, losses, plot_path):
+    def plot_losses_steps(self, losses, plot_path):
         fig = plt.figure()
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
         axes.plot(losses, 'r')
         axes.grid(True)
-        axes.set_xlabel('epochs')
-        axes.set_ylabel('loss (log scaled)')
-        axes.set_yscale('log')
-        axes.set_title('History of MSELoss during training')
+        axes.set_xlabel('sequence time steps')
+        axes.set_ylabel('loss')
+        # axes.set_yscale('log')
+        axes.set_title('MSELoss for each test prediction time step')
         
         plt.savefig(f'{plot_path}_losses.png')
-        #plt.savefig(f'{plot_path}_losses.pdf')
         plt.show()
+
+
+def main(render=False):
+    
+    seed = 0
+    interactions = ['A', 'B', 'C', 'D']
+    interactions_num = [0, 1, 2, 3]
+    
+    paths = [
+        f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
+        for interaction in interactions
+    ]
+    interaction_paths = dict(zip(interactions_num, paths))
+    print(interaction_paths)
+    
+    ##### Dataset and DataLoader #####
+    batch_size = 180
+    
+    dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
+    generator = torch.Generator().manual_seed(seed)
+    split = [0.7, 0.15, 0.15]
+    
+    _, _, test_dataset = random_split(dataset, split, generator)
+    
+    # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    # val_dataloader = DataLoader(val_dataset, batch_size=10, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+    
+    # print(f"Number of train samples:     {len(train_dataset)}")
+    # print(f"Number of valiation samples: {len(val_dataset)}")
+    print(f"Number of test samples:      {len(test_dataset)} \n")
+    
+    ##### Model parameters #####
+    hidden_num = 360
+    layer_norm = True
+    n_dim = 6
+    n_features = 3
+    n_independent = 5 # 2 motor + 3 distances 
+    
+    # model_name = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200'
+    current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
+    
+    model_name = current_best
+    model_save_path = f'CoreLSTM/models/{model_name}.pt'
+    
+    mse_loss = nn.MSELoss()
+    criterion = mse_loss
+    
+    tester = LSTM_Tester(
+        loss_function=criterion,
+        batch_size=batch_size,
+        hidden_num=hidden_num,
+        layer_norm=layer_norm,
+        num_dim=n_dim,
+        num_feat=n_features,
+        independent_feat=n_independent,
+        model_save_path=model_save_path
+    )
+
+    print("Test dataset: \n")
+    print(tester.model.training)
+    _ = tester.evaluate(test_dataloader)
+    total_loss, losses = tester.evaluate_detailed(test_dataloader)
+    print(f"\n Evaluation: Total loss of {total_loss:4f} - Sum step losses of {sum(losses)}")
+    
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    tester.plot_losses_steps(losses, test_loss_path)
+
+    if render:
+        # Check prediction for one example with renderer
+        tester.evaluate_model_with_renderer(
+            # train_dataloader, 
+            test_dataloader,
+            n_samples=5
+        )
+    
+if __name__ == '__main__':
+    main()
