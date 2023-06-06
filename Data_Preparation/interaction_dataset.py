@@ -87,7 +87,6 @@ def main():
         for interaction in interactions
     ]
     interaction_paths = dict(zip(interactions_num, paths))
-    print(interaction_paths)
     
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(interaction_paths)

@@ -125,7 +125,7 @@ class LSTM_Trainer():
                     
         model_state = best_model_wts if validate else self.model.state_dict()
         self.save_model(save_path, model_state)
-        print(f"Model with minimum validation loss: {min(val_losses):.6f} was saved to {save_path}\n")
+        print(f"Model with minimum validation loss: {min(val_losses):.6f}\n")
 
         return train_losses, val_losses
     
@@ -248,11 +248,11 @@ class LSTM_Trainer():
                 outs = []
                 
                 for j in range(seq_len):
-                    _input = seq[j, :, :].to(self.device)
+                    _input = seq[j, :, :]
                     out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
                     outs.append(out)
                     
-                outs = torch.stack(outs).to(self.device)
+                outs = torch.stack(outs)
                 
                 single_loss = self.loss_function(outs, label)
                 loss += single_loss

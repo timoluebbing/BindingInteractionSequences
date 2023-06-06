@@ -1,5 +1,6 @@
 import torch 
 from torch import nn
+import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 
@@ -14,9 +15,9 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=False, validate=True, test=True, render=False):
+def main(train=True, validate=True, test=True, render=False):
     
-    seed = 0
+    seed = 2023
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
     
@@ -33,11 +34,12 @@ def main(train=False, validate=True, test=True, render=False):
     dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]
+    # split = [0.3, 0.1, 0.6]
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=10, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
     
     print(f"Number of train samples:     {len(train_dataset)}")
@@ -46,7 +48,7 @@ def main(train=False, validate=True, test=True, render=False):
     
     
     ##### Model parameters #####
-    epochs = 2000
+    epochs = 30
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -54,7 +56,7 @@ def main(train=False, validate=True, test=True, render=False):
     weight_decay = 0.01
     betas = (0.9, 0.999)
     teacher_forcing_steps = 200
-    teacher_forcing_dropouts = True
+    teacher_forcing_dropouts = False
     
     hidden_num = 360
     layer_norm = True
@@ -100,7 +102,10 @@ def main(train=False, validate=True, test=True, render=False):
         val_loss_path   = f"CoreLSTM/testing_predictions/val_loss/{model_name}"
         trainer.plot_losses(train_losses, train_loss_path)
         trainer.plot_losses(val_losses,   val_loss_path)
-
+        
+        test_loss = trainer.validate(test_dataloader)
+        print(test_loss)
+        
 
     if test:
         model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
@@ -114,17 +119,22 @@ def main(train=False, validate=True, test=True, render=False):
             num_dim=n_dim,
             num_feat=n_features,
             independent_feat=n_independent,
-            # model_save_path=model_save_path, 
+            model_save_path=model_save_path, 
             # model_save_path=model_path, 
-            model_save_path=current_best, 
+            # model_save_path=current_best, 
         )
         
         print("Test dataset: \n")
         _ = tester.evaluate(test_dataloader)
 
-        # Check prediction for one example with renderer
+        total_loss, losses, obj_losses, type_losses = tester.evaluate_detailed(test_dataloader)
+        print(total_loss)
+        print(sum(losses))
+        print(np.sum(obj_losses, axis=None))
+        print(np.sum(type_losses, axis=None))
         
         if render:
+        # Check prediction for one example with renderer
             tester.evaluate_model_with_renderer(
                 test_dataloader, 
                 # train_dataloader,
