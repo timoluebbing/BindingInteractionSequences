@@ -15,7 +15,7 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=True, render=False):
+def main(train=False, validate=True, test=True, render=False):
     
     seed = 2023
     interactions = ['A', 'B', 'C', 'D']
@@ -33,8 +33,8 @@ def main(train=True, validate=True, test=True, render=False):
 
     dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
-    split = [0.7, 0.15, 0.15]
-    # split = [0.3, 0.1, 0.6]
+    #split = [0.7, 0.15, 0.15]
+    split = [0.6, 0.3, 0.1]
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     
@@ -121,7 +121,7 @@ def main(train=True, validate=True, test=True, render=False):
             independent_feat=n_independent,
             model_save_path=model_save_path, 
             # model_save_path=model_path, 
-            # model_save_path=current_best, 
+            # model_save_path=current_best,  
         )
         
         print("Test dataset: \n")

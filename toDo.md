@@ -9,9 +9,11 @@
 - Preprocessed Daten 3 * 4 features pro frame (position und orientierung)
 - Input shape der Daten besprechen
 - Ist das Trainieren des LSTM am Anfang ohne Binding Matrix usw ohne Active Tuning oder mit? -> ohne AT
-### Neu
 - Impact force in Interaktion C besprechen (solange der Ball am Actor hängt feuert der hohe Werte raus)
 - Ist der Optimizer.step aufruf an der richtigen Stelle? -> beides ausprobieren
+
+### Neu
+
 
 ## Bis zum nächten Meeting
 - [x] Distancen normalisieren, (wie?, z.B. auf [0, 1]) 
@@ -29,19 +31,23 @@
 - [x] Dataset class für aufteilung in train, val und test vorbereiten
 - [x] teacher forcing flag and closed loop training
 - [x] torch.util.data.random_split
-### Neu
 - [x] evaluate function
 - [x] main train in new file
 - [x] optimizer step pro batch ausprobieren
-- [ ] optimizer step pro epoch ausprobieren
 - [x] random teacher forcing auf erste x steps umbauen
 - [x] Save model with min loss instead of last epoch (wie beim boot projekt)
-- [ ] grid search hyperparameter tuning
 - [x] embedding layer für 18 input features
 - [x] closed loop dropouts progressive 
   - [ ] (auf pretrained model)
 - [x] log scale loss plot
 - [ ] lr scheduler
 - [x] extract eval into tester class
-- [ ] test loss plotting for each time step
+- [x] test loss plotting for each time step
+- [x] test loss plotting for each time step by object
+- [x] test loss plotting for each time step by type (coords, orientation, force)
+### Neu
 - [ ] Fix batch size impact on test loss...
+- [x] Fix sum of losses
+- [ ] interaction module
+- [ ] grid search hyperparameter tuning
+- [ ] 

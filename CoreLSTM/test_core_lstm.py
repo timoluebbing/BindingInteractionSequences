@@ -122,14 +122,12 @@ class LSTM_Tester():
                     
                     for i in range(3):
                         # Object specific loss
-                        single_object_out = out[:, i*6 : (i+1)*6]
-                        single_object_label = label[j, :, i*6 : (i+1)*6]
+                        single_object_out, single_object_label = self.get_data_by_object(out, label, i, j)
                         object_loss = self.loss_function(single_object_out, single_object_label)
                         batch_loss_each_step_objects[i, j] = object_loss
                         
                         # Data specific loss (coords, orientation, force)
-                        single_data_out = out[:, i*2 : (i+1)*2 : 6]
-                        single_data_label = label[j, :, i*2 : (i+1)*2 : 6]
+                        single_data_out, single_data_label = self.get_data_by_type(out, label, i, j)
                         data_loss = self.loss_function(single_data_out, single_data_label)
                         batch_loss_each_step_data[i, j] = data_loss
                         
@@ -148,6 +146,25 @@ class LSTM_Tester():
             losses_each_step_data = batch_losses_each_step_data
         
         return total_loss, losses_each_step, losses_each_step_objects, losses_each_step_data
+    
+    def get_data_by_object(self, out, label, i, j):
+        object_out = out[:, i*6 : (i+1)*6]
+        object_label = label[j, :, i*6 : (i+1)*6]
+        return object_out, object_label
+    
+    def get_data_by_type(self, out, label, i, j):
+        os, ls = [], []
+        
+        for k in range(3):
+            o = out[:, 2*i + (6*k) : 2*(i+1) + (6*k)]
+            os.append(o)
+            l = label[j, :, 2*i + (6*k) : 2*(i+1) + (6*k)]
+            ls.append(l)
+        
+        type_out = torch.cat(os, dim=1)
+        type_label = torch.cat(ls, dim=1)
+        
+        return type_out, type_label
                 
     def evaluate_model_with_renderer(self, dataloader, n_samples=4):
         
@@ -221,7 +238,7 @@ class LSTM_Tester():
         plt.show()
 
 
-def main(render=True):
+def main(render=False):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -258,7 +275,7 @@ def main(render=True):
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     
-    model_name = current_best_dropout_wd
+    model_name = current_best_dropout
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
