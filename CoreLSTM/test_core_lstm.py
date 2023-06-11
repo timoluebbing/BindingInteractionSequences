@@ -10,7 +10,7 @@ from tqdm import tqdm
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -259,14 +259,17 @@ def main(render=False):
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 0
-    no_forces = False
+    no_forces = True
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
-        # no_forces=True,
+        no_forces=True,
+        n_out=12,
         use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]
+    split = [0.6, 0.3, 0.1]
+    
     
     _, _, test_dataset = random_split(dataset, split, generator)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
@@ -286,8 +289,9 @@ def main(render=False):
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
-    
-    model_name = current_best
+    no_forces_model = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200'
+
+    model_name = no_forces_model
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
