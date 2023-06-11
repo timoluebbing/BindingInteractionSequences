@@ -56,9 +56,11 @@ class LSTM_Tester():
         self.batch_size = batch_size
         self.loss_function = loss_function
         self.model_save_path = model_save_path
+        
+        self.input_size = num_dim*num_feat
 
         self.model = CORE_NET(
-            input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
+            input_size=self.input_size+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
             output_size=num_output,
             layer_norm=layer_norm
@@ -202,7 +204,13 @@ class LSTM_Tester():
             input_sequence = seq[:, seq_index, :]
             int_label = str(interaction[seq_index].item())
             
-            renderer = Interaction_Renderer(int_label, in_tensor=input_sequence, out_tensor=output_sequence)
+            renderer = Interaction_Renderer(
+                n_features=self.num_obj,
+                n_input=self.input_size,
+                n_out=self.num_output,
+                interaction=int_label, 
+                in_tensor=input_sequence, 
+                out_tensor=output_sequence)
             renderer.render(loops=1)
             renderer.close()
     

@@ -15,7 +15,7 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=True, render=False):
+def main(train=True, validate=True, test=True, render=True):
     # sourcery skip: inline-variable, remove-redundant-boolean
     
     interactions = ['A', 'B', 'C', 'D']
@@ -30,7 +30,7 @@ def main(train=True, validate=True, test=True, render=False):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 180
-    no_forces = False
+    no_forces = True
     no_forces_out = True
     n_out = 12 if (no_forces or no_forces_out) else 18
 
@@ -42,7 +42,6 @@ def main(train=True, validate=True, test=True, render=False):
     )
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]
-    # split = [0.6, 0.3, 0.1]
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     

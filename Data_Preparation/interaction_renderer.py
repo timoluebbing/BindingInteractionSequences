@@ -11,7 +11,19 @@ from Data_Preparation.data_preparation import Preprocessor
 
 class Interaction_Renderer():
     
-    def __init__(self, interaction, path=None, in_tensor=None, out_tensor=None):
+    def __init__(
+        self, 
+        n_features,
+        n_input,
+        n_out, 
+        interaction, 
+        path=None, 
+        in_tensor=None, 
+        out_tensor=None
+    ):
+        self.n_features = n_features
+        self.n_input = n_input,
+        self.n_out = n_out
         self.path = path
         self.fps = 30
         self.max_fps = 201
@@ -25,6 +37,9 @@ class Interaction_Renderer():
         self.tensor_output = out_tensor
         self.tensor_input = in_tensor
         self.interaction = interaction
+        
+        self.n_dim_in  = n_input // n_features
+        self.n_dim_out = n_out // n_features
     
     ########################################################################
     # Render sequence from pandas dataframe csv file
@@ -60,16 +75,16 @@ class Interaction_Renderer():
         row_in = self.tensor_input[frame, :].tolist()
         row_out = self.tensor_output[frame, :].tolist()
         
-        xs_in, xs_out = row_in[::6], row_out[::6]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
+        xs_in, xs_out = row_in[::self.n_dim_in], row_out[::self.n_dim_out]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
         xs_in = [x * self.width for x in xs_in]
         xs_out = [x * self.width for x in xs_out]
         
-        ys_in, ys_out = row_in[1::6], row_out[1::6]
+        ys_in, ys_out = row_in[1::self.n_dim_in], row_out[1::self.n_dim_out]
         ys_in = [y * self.height for y in ys_in]
         ys_out = [y * self.height for y in ys_out]
         
-        sin_in, sin_out = row_in[2::6], row_out[2::6]
-        cos_in, cos_out = row_in[3::6], row_out[3::6]
+        sin_in, sin_out = row_in[2::self.n_dim_in], row_out[2::self.n_dim_out]
+        cos_in, cos_out = row_in[3::self.n_dim_in], row_out[3::self.n_dim_out]
         return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
     
     def draw_text(self):
