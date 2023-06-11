@@ -10,7 +10,7 @@ from tqdm import tqdm
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -36,29 +36,34 @@ class LSTM_Tester():
         num_feat,
         num_independent_feat,
         num_interactions,
+        num_output,
         model_save_path
     ):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.num_dim = num_dim
-        self.num_feature_types = int(num_dim / 2)
+
+        if num_output == 12:
+            self.num_dim = int(num_output / num_feat)
+            self.num_feature_types = self.num_dim // 2
+
+        elif num_output == 18:
+            self.num_dim = num_dim
+            self.num_feature_types = self.num_dim // 2
+            
         self.num_obj = num_feat
         self.num_interactions = num_interactions
+        self.num_output = num_output
+
         self.batch_size = batch_size
         self.loss_function = loss_function
         self.model_save_path = model_save_path
 
-        self.prepro = Preprocessor(
-            num_features=num_feat,
-            num_dimensions=num_dim
-        )
-        
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
-            output_size=num_dim*num_feat,
+            output_size=num_output,
             layer_norm=layer_norm
         )
-        
+
         self.load_model()
         print(f"Model load path: {model_save_path}")
         print(f'DEVICE TestM:    {self.device}')
@@ -101,8 +106,8 @@ class LSTM_Tester():
         
         batch_losses = torch.tensor([0.0], device=self.device)
         batch_losses_each_step = np.zeros(200)
-        batch_losses_each_step_objects = np.zeros((3, 200))
-        batch_losses_each_step_data = np.zeros((3, 200))
+        batch_losses_each_step_objects = np.zeros((self.num_obj, 200))
+        batch_losses_each_step_data = np.zeros((self.num_feature_types, 200))
                             
         with torch.no_grad():
             for seq, label, interaction in tqdm(dataloader):
@@ -114,8 +119,8 @@ class LSTM_Tester():
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
                 batch_loss_each_step = np.zeros(200)
-                batch_loss_each_step_objects = np.zeros((3, 200))
-                batch_loss_each_step_data = np.zeros((3, 200))
+                batch_loss_each_step_objects = np.zeros((self.num_obj, 200))
+                batch_loss_each_step_data = np.zeros((self.num_feature_types, 200))
                 
                 for j in range(seq_len):
                     _input = seq[j, :, :].to(self.device)
@@ -126,17 +131,18 @@ class LSTM_Tester():
                     single_loss = single_loss.item()
                     batch_loss_each_step[j] = single_loss
                     
-                    for i in range(3):
+                    for i in range(self.num_obj):
                         # Object specific loss
                         single_object_out, single_object_label = self.get_data_by_object(out, label, i, j)
                         object_loss = self.loss_function(single_object_out, single_object_label)
                         batch_loss_each_step_objects[i, j] = object_loss
-                        
+                    
+                    for i in range(self.num_feature_types):
                         # Data specific loss (coords, orientation, force)
                         single_data_out, single_data_label = self.get_data_by_type(out, label, i, j)
                         data_loss = self.loss_function(single_data_out, single_data_label)
                         batch_loss_each_step_data[i, j] = data_loss
-                        
+                    
                     
                 outs_stacked = torch.stack(outs).to(self.device)
                 batch_loss = self.loss_function(outs_stacked, label)
@@ -254,17 +260,17 @@ def main(render=False):
         for interaction in interactions
     ]
     interaction_paths = dict(zip(interactions_num, paths))
-    print(interaction_paths)
     
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 0
     no_forces = True
+    n_out = 12 if no_forces else 18
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
-        no_forces=True,
-        n_out=12,
+        no_forces=no_forces,
+        n_out=n_out,
         use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]

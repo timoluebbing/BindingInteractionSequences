@@ -41,7 +41,8 @@ class LSTM_Trainer():
             num_dim, 
             num_feat,
             num_independent_feat,
-            num_interactions
+            num_interactions,
+            num_output
         ):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
@@ -50,6 +51,7 @@ class LSTM_Trainer():
         self.num_feat = num_feat
         self.num_independent_feat = num_independent_feat
         self.num_interactions = num_interactions
+        self.num_output = num_output
 
         self.prepro = Preprocessor(
             num_features=num_feat,
@@ -59,7 +61,7 @@ class LSTM_Trainer():
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
-            output_size=num_dim*num_feat,
+            output_size=num_output,
             layer_norm=layer_norm
         )
         self.batch_size = batch_size

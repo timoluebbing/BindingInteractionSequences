@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -16,32 +16,33 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
 def main(train=True, validate=True, test=True, render=False):
+    # sourcery skip: inline-variable, remove-redundant-boolean
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
-    no_forces = True
     
     paths = [
         f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
         for interaction in interactions
     ]
     interaction_paths = dict(zip(interactions_num, paths))
-    print(interaction_paths)
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    no_forces = True
     batch_size = 180
+    no_forces = False
+    no_forces_out = True
+    n_out = 12 if (no_forces or no_forces_out) else 18
 
     dataset = TimeSeriesDataset(
         interaction_paths, 
         no_forces=no_forces,
-        n_out=12,
+        n_out=n_out,
         use_distances_and_motor=True
     )
     generator = torch.Generator().manual_seed(seed)
-    #split = [0.7, 0.15, 0.15]
-    split = [0.6, 0.3, 0.1]
+    split = [0.7, 0.15, 0.15]
+    # split = [0.6, 0.3, 0.1]
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, split, generator)
     
@@ -55,12 +56,12 @@ def main(train=True, validate=True, test=True, render=False):
     
     
     ##### Model parameters #####
-    epochs = 2000
+    epochs = 10
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.0001
-    weight_decay = 0.01
+    weight_decay = 0 # 0.01
     betas = (0.9, 0.999)
     teacher_forcing_steps = 200
     teacher_forcing_dropouts = False
@@ -77,6 +78,8 @@ def main(train=True, validate=True, test=True, render=False):
     model_name += '_lnorm' if layer_norm else ''
     model_name += f'_tfs{teacher_forcing_steps}'
     model_name += '_tfd' if teacher_forcing_dropouts else ''
+    model_name += '_nf' if no_forces else ''
+    model_name += '_nfo' if no_forces_out else ''
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
         
@@ -96,7 +99,8 @@ def main(train=True, validate=True, test=True, render=False):
             num_dim=n_dim,
             num_feat=n_features,
             num_independent_feat=n_independent,
-            num_interactions=n_interactions
+            num_interactions=n_interactions,
+            num_output=n_out
         )
         
         train_losses, val_losses = trainer.train_and_validate(
@@ -129,6 +133,7 @@ def main(train=True, validate=True, test=True, render=False):
             num_feat=n_features,
             num_independent_feat=n_independent,
             num_interactions=n_interactions,
+            num_output=n_out,
             model_save_path=model_save_path, 
             # model_save_path=model_path, 
             # model_save_path=current_best,  
