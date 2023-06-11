@@ -1,6 +1,7 @@
 
 import torch 
 from torch import nn
+from itertools import combinations
 import matplotlib.pyplot as plt
 from numpy import random
 from torch.utils.data import DataLoader
@@ -18,8 +19,6 @@ sys.path.append(laptop_dir)
 
 from CoreLSTM.core_lstm import CORE_NET
 from Data_Preparation.data_preparation import Preprocessor
-from Data_Preparation.interaction_dataset import TimeSeriesDataset
-from Data_Preparation.interaction_renderer import Interaction_Renderer
 
 
 class LSTM_Trainer():
@@ -41,11 +40,16 @@ class LSTM_Trainer():
             layer_norm, 
             num_dim, 
             num_feat,
-            independent_feat,
+            num_independent_feat,
+            num_interactions
         ):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
         print(f'DEVICE TrainM: {self.device}')
+        self.num_dim = num_dim
+        self.num_feat = num_feat
+        self.num_independent_feat = num_independent_feat
+        self.num_interactions = num_interactions
 
         self.prepro = Preprocessor(
             num_features=num_feat,
@@ -53,8 +57,9 @@ class LSTM_Trainer():
         )
         
         self.model = CORE_NET(
-            input_size=num_dim*num_feat+independent_feat+4, 
+            input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
+            output_size=num_dim*num_feat,
             layer_norm=layer_norm
         )
         self.batch_size = batch_size
@@ -217,13 +222,22 @@ class LSTM_Trainer():
 
     def closed_loop_input(self, seq, j, output):
         distances = self.calculate_new_distances(output)
-        motor_force = seq[j, :, 18:20].squeeze() # if j < seq_len-1 else seq[0,:,18:20]
+        motor_column = self.num_dim*self.num_feat
+        motor_force = seq[j, :, motor_column:motor_column+2].squeeze()
         return torch.cat([output, motor_force, distances], dim=1)
 
     def calculate_new_distances(self, out: torch.Tensor):
         # shape out: [seq_len=1, batch_size, features]
         t = out.squeeze()
-        a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
+        # a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
+        a1, a2, b = (
+            t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+            for i in range(self.num_feat)
+        )
+        
+        # abstrahieren für n_obj!=3 mit [a1, a2, b, ...] als list und:
+        # combs = it.combinations(tensors, 2)
+        # dann loop über combs und dist anwenden
         
         dist = PairwiseDistance(p=2)
         dis_a1_a2 = dist(a1, a2)

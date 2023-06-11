@@ -15,11 +15,11 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=False, validate=True, test=True, render=False):
+def main(train=True, validate=True, test=True, render=False):
     
-    seed = 2023
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
+    no_forces = True
     
     paths = [
         f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
@@ -29,9 +29,16 @@ def main(train=False, validate=True, test=True, render=False):
     print(interaction_paths)
     
     ##### Dataset and DataLoader #####
+    seed = 2023
+    no_forces = True
     batch_size = 180
 
-    dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
+    dataset = TimeSeriesDataset(
+        interaction_paths, 
+        no_forces=no_forces,
+        n_out=12,
+        use_distances_and_motor=True
+    )
     generator = torch.Generator().manual_seed(seed)
     #split = [0.7, 0.15, 0.15]
     split = [0.6, 0.3, 0.1]
@@ -61,9 +68,10 @@ def main(train=False, validate=True, test=True, render=False):
     hidden_num = 360
     layer_norm = True
 
-    n_dim = 6
+    n_dim = 4 if no_forces else 6
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
+    n_interactions = len(interactions)
     
     model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
@@ -87,7 +95,8 @@ def main(train=False, validate=True, test=True, render=False):
             layer_norm=layer_norm,
             num_dim=n_dim,
             num_feat=n_features,
-            independent_feat=n_independent
+            num_independent_feat=n_independent,
+            num_interactions=n_interactions
         )
         
         train_losses, val_losses = trainer.train_and_validate(
@@ -118,7 +127,8 @@ def main(train=False, validate=True, test=True, render=False):
             layer_norm=layer_norm,
             num_dim=n_dim,
             num_feat=n_features,
-            independent_feat=n_independent,
+            num_independent_feat=n_independent,
+            num_interactions=n_interactions,
             model_save_path=model_save_path, 
             # model_save_path=model_path, 
             # model_save_path=current_best,  

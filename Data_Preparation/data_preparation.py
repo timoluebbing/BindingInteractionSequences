@@ -224,7 +224,13 @@ class Preprocessor():
         
         return seq, label[:,:n_features]
     
-    def get_LSTM_data_interaction(self, path, use_distances_and_motor=False, distances_and_motor_only=False):
+    def get_LSTM_data_interaction(
+        self, 
+        path, 
+        no_forces=False, 
+        use_distances_and_motor=False, 
+        distances_and_motor_only=False
+    ):
         """ Returns interaction specific tensor data
 
         Args:
@@ -238,6 +244,18 @@ class Preprocessor():
         sequence_list = self.load_concat_dataframe(path)
         tensor_list = self.dataframes_to_tensor(sequence_list)
 
+        if no_forces and use_distances_and_motor:
+            
+            tensors = []
+            for i in range(3):
+                t = tensor_list[:, : , i*4 + i*2: (i+1)*4 + i*2]
+                tensors.append(t)
+                
+            dis_motor = tensor_list[:, :, (self.num_dimensions * self.num_features) : ]
+            tensors.append(dis_motor)
+            
+            return torch.cat(tensors, dim=2)
+        
         if use_distances_and_motor:
             return tensor_list
 
@@ -247,7 +265,7 @@ class Preprocessor():
         return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
     
 
-def main(interaction = 'D', save_concat=True):
+def main(interaction = 'A', save_concat=False):
 
     path = f"Data_Preparation/Interactions/{interaction}/interaction_{interaction}_trial_0.csv"
     concat_path=f"Data_Preparation/Interactions/Data/interaction_{interaction}_concat.csv"
@@ -272,9 +290,12 @@ def main(interaction = 'D', save_concat=True):
                                 preprocess=True, 
                                 interaction=interaction)
 
-    tensor_data = prepro.get_LSTM_data_interaction(concat_path, use_distances_and_motor=True)
+    tensor_data = prepro.get_LSTM_data_interaction(
+        concat_path, 
+        no_forces=True,
+        use_distances_and_motor=True)
     print(tensor_data.shape)
-    print(tensor_data[0,:40,-6:])
+    # print(tensor_data[0,:40,-6:])
         
     # df = pd.DataFrame({
     #     'motor_fx': [-6,-5,-4,-3,-1,0,0,0,0,1,2,3,4],

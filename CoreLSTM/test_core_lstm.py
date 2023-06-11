@@ -34,10 +34,15 @@ class LSTM_Tester():
         layer_norm, 
         num_dim, 
         num_feat,
-        independent_feat,
+        num_independent_feat,
+        num_interactions,
         model_save_path
     ):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.num_dim = num_dim
+        self.num_feature_types = int(num_dim / 2)
+        self.num_obj = num_feat
+        self.num_interactions = num_interactions
         self.batch_size = batch_size
         self.loss_function = loss_function
         self.model_save_path = model_save_path
@@ -48,8 +53,9 @@ class LSTM_Tester():
         )
         
         self.model = CORE_NET(
-            input_size=num_dim*num_feat+independent_feat+4, 
+            input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
+            output_size=num_dim*num_feat,
             layer_norm=layer_norm
         )
         
@@ -148,17 +154,17 @@ class LSTM_Tester():
         return total_loss, losses_each_step, losses_each_step_objects, losses_each_step_data
     
     def get_data_by_object(self, out, label, i, j):
-        object_out = out[:, i*6 : (i+1)*6]
-        object_label = label[j, :, i*6 : (i+1)*6]
+        object_out = out[:, i*self.num_dim : (i+1)*self.num_dim]
+        object_label = label[j, :, i*self.num_dim : (i+1)*self.num_dim]
         return object_out, object_label
     
     def get_data_by_type(self, out, label, i, j):
         os, ls = [], []
         
-        for k in range(3):
-            o = out[:, 2*i + (6*k) : 2*(i+1) + (6*k)]
+        for k in range(self.num_feature_types):
+            o = out[:, 2*i + (self.num_dim*k) : 2*(i+1) + (self.num_dim*k)]
             os.append(o)
-            l = label[j, :, 2*i + (6*k) : 2*(i+1) + (6*k)]
+            l = label[j, :, 2*i + (self.num_dim*k) : 2*(i+1) + (self.num_dim*k)]
             ls.append(l)
         
         type_out = torch.cat(os, dim=1)
@@ -253,8 +259,12 @@ def main(render=False):
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 0
+    no_forces = False
     
-    dataset = TimeSeriesDataset(interaction_paths, use_distances_and_motor=True)
+    dataset = TimeSeriesDataset(
+        interaction_paths, 
+        # no_forces=True,
+        use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]
     
@@ -266,16 +276,18 @@ def main(render=False):
     ##### Model parameters #####
     hidden_num = 360
     layer_norm = True
-    n_dim = 6
+    
+    n_dim = 4 if no_forces else 6
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
+    n_interactions = len(interactions)
     
     # model_name = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200'
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     
-    model_name = current_best_dropout
+    model_name = current_best
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -288,7 +300,8 @@ def main(render=False):
         layer_norm=layer_norm,
         num_dim=n_dim,
         num_feat=n_features,
-        independent_feat=n_independent,
+        num_independent_feat=n_independent,
+        num_interactions=n_interactions,
         model_save_path=model_save_path
     )
 

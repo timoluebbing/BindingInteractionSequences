@@ -5,17 +5,20 @@ from torch.utils.data import Dataset, DataLoader, random_split
 
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)
+sys.path.append(laptop_dir)
 from Data_Preparation.data_preparation import Preprocessor
 
 
 class TimeSeriesDataset(Dataset):
-    def __init__(self, 
-                 interaction_paths, 
-                 n_out=18, 
-                 use_distances_and_motor=True, 
-                 transform=None,
-                 num_samples=1200):
+    def __init__(
+        self, 
+        interaction_paths, 
+        n_out=18, 
+        no_forces=False,
+        use_distances_and_motor=True, 
+        transform=None,
+        num_samples=1200
+    ):
         """
         Custom dataset class for interaction sequences. If train, validate and test flags are all False, the whole dataset
         is returned (default).
@@ -31,6 +34,7 @@ class TimeSeriesDataset(Dataset):
         """
         self.interaction_paths = interaction_paths
         self.n_out = n_out
+        self.no_forces = no_forces
         self.use_distances_and_motor = use_distances_and_motor
         self.num_samples = num_samples
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -67,7 +71,10 @@ class TimeSeriesDataset(Dataset):
                 
         for interaction, path in self.interaction_paths.items():
                 print(f"Loading interaction {interaction} from {path}")
-                interaction_data = self.prepro.get_LSTM_data_interaction(path, self.use_distances_and_motor)
+                interaction_data = self.prepro.get_LSTM_data_interaction(
+                    path, 
+                    self.no_forces,
+                    self.use_distances_and_motor)
                 print(interaction_data.shape, end='\n\n')
                 
                 num_sequences = len(interaction_data)
