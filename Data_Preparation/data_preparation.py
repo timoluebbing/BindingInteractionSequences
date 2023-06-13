@@ -210,7 +210,7 @@ class Preprocessor():
         return torch.Tensor(df.values)
         
         
-    def create_inout_sequence(self, input_data, n_features):
+    def create_inout_sequence(self, input_data, no_forces, n_features):
         """ Creates input and label sequences for a single interaction sequence
 
         Args:
@@ -223,7 +223,9 @@ class Preprocessor():
         seq = input_data[:-1]
         label = input_data[1:]#
 
-        if n_features == 18:
+        # select first n features if no_forces=True (-> n_features=12) or standard amount of 18 features
+        # With no_forces=T -> n_features=12 because forces were already droped in get_LSTM_data_interaction()
+        if no_forces or n_features == 18:
             return seq, label[:,:n_features]
 
         if n_features == 12:

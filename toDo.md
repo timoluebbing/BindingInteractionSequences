@@ -49,8 +49,11 @@
 - [x] Fix batch size impact on test loss...
 - [x] Fix sum of losses
 - [ ] Fix sum of losses type 
+  - [ ] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
 - [x] no forces and no forces out
 - [ ] Fix renderer for no forces out
+- [ ] create in out seq auf dim=4 anpassen/ abstrahieren
+- [ ] closed loop für no forces out (forces wieder mit rein)
 - [ ] interaction module
 - [ ] grid search hyperparameter tuning
 

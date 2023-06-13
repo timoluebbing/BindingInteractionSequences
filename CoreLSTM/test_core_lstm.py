@@ -268,7 +268,7 @@ class LSTM_Tester():
         # axes.set_yscale('log')
         axes.set_title('MSELoss for each test prediction time step')
         
-        plt.savefig(f'{plot_path}_type_losses.png')
+        plt.savefig(f'{plot_path}_object_losses.png')
         plt.show()
     
         
@@ -366,12 +366,10 @@ def main(render=True):
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_steps"
-    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_obj"
-    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_type"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
     tester.plot_losses_steps(losses, test_loss_path)
-    tester.plot_losses_objects(obj_losses, obj_loss_path)
-    tester.plot_losses_types(type_losses, type_loss_path)
+    tester.plot_losses_objects(obj_losses, test_loss_path)
+    tester.plot_losses_types(type_losses, test_loss_path)
 
     if render:
         # Check prediction for one example with renderer

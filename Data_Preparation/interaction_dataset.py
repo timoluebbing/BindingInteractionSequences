@@ -58,7 +58,10 @@ class TimeSeriesDataset(Dataset):
             idx = idx.tolist()
 
         sample = self.data[idx]
-        sequence, label = self.prepro.create_inout_sequence(sample, self.n_out)
+        sequence, label = self.prepro.create_inout_sequence(
+            sample, 
+            self.no_forces, 
+            self.n_out)
         
         interaction = self.interactions[idx]
 
@@ -96,7 +99,11 @@ def main():
     interaction_paths = dict(zip(interactions_num, paths))
     
     ##### Dataset and DataLoader #####
-    dataset = TimeSeriesDataset(interaction_paths)
+    dataset = TimeSeriesDataset(
+        interaction_paths,
+        n_out=12,
+        no_forces=True,
+    )
     generator = torch.Generator().manual_seed(seed)
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.7, 0.15, 0.15], generator)
@@ -119,6 +126,8 @@ def main():
     print(f"Sequence shape:  {seq.shape} {seq.dtype}")
     print(f"Label shape:     {label.shape} {label.dtype}")
     print(f"Interaction:     {interaction} {interaction.dtype}")
+    
+    print(label[0])
     
 if __name__ == "__main__":
     main()

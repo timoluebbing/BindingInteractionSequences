@@ -41,6 +41,7 @@ class Interaction_Renderer():
         self.n_dim_in  = n_input // n_features
         self.n_dim_out = n_out // n_features
     
+    
     ########################################################################
     # Render sequence from pandas dataframe csv file
     ########################################################################
@@ -51,6 +52,7 @@ class Interaction_Renderer():
         ys = coordinates[1::9]
         os = coordinates[2::9]
         return xs, ys, os
+    
     
     def draw(self, frame):
         self.screen.fill(self.white)
@@ -67,6 +69,7 @@ class Interaction_Renderer():
             line_x = x + math.cos(angle) * 10
             line_y = y + math.sin(angle) * 10
             pygame.draw.line(self.screen, self.red, (x, y), (line_x, line_y), 2)        
+    
         
     ########################################################################
     # Render predicted output sequence from torch tensor
@@ -87,6 +90,7 @@ class Interaction_Renderer():
         cos_in, cos_out = row_in[3::self.n_dim_in], row_out[3::self.n_dim_out]
         return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
     
+    
     def draw_text(self):
         my_font = pygame.font.SysFont('Arial', 50)
         legend_font = pygame.font.SysFont('Arial', 25)
@@ -96,6 +100,7 @@ class Interaction_Renderer():
         self.screen.blit(text, (30, 30))
         self.screen.blit(legend0, (self.width - 120, 20))
         self.screen.blit(legend1, (self.width - 120, 50))
+    
     
     def draw_output(self, frame):
         self.screen.fill(self.white)
@@ -153,6 +158,7 @@ class Interaction_Renderer():
             pygame.display.update()
         
         pygame.quit()
+        
         
     def close(self):
         pygame.quit()

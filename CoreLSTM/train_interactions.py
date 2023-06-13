@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -29,8 +29,8 @@ def main(train=True, validate=True, test=True, render=True):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 180
-    no_forces = False
-    no_forces_out = True
+    no_forces = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
 
     dataset = TimeSeriesDataset(
@@ -54,7 +54,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 1000
+    epochs = 30
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -147,7 +147,7 @@ def main(train=True, validate=True, test=True, render=True):
         print(np.sum(type_losses, axis=None))
         
         if render:
-        # Check prediction for one example with renderer
+        # Check prediction for n examples with renderer
             tester.evaluate_model_with_renderer(
                 test_dataloader, 
                 # train_dataloader,
