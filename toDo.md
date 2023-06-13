@@ -46,8 +46,19 @@
 - [x] test loss plotting for each time step by object
 - [x] test loss plotting for each time step by type (coords, orientation, force)
 ### Neu
-- [ ] Fix batch size impact on test loss...
+- [x] Fix batch size impact on test loss...
 - [x] Fix sum of losses
+- [ ] Fix sum of losses type 
+- [x] no forces and no forces out
+- [ ] Fix renderer for no forces out
 - [ ] interaction module
 - [ ] grid search hyperparameter tuning
-- [ ] 
+
+### Retrospective Inference:
+- Wir haben das pretrained model, sind dann alle gradients außer die von den event codes und softmax eingefrohren?
+- Statt den event onehot labels wie [0, 1, 0, 0] wird jetzt immer für jede Sequenz [1/4 ...] genommen als input zur event code layer.
+- Kein Vergleich der Onehots sondern nur des lstm outputs
+  - Also nach ri ist event code z.B. [0.1, 0.2, 0.6, 0.1]. Keinen Vergleich mit loss wie mse zu [0, 0, 1, 0].
+  - Nach dem die ganze Sequenz durchgelaufen ist wird der loss zurück auf die event codes layer geführt (plus softmax). Den adaptierten neuen event code 'output' kann man dann wie auslesen?
+- Wird das retrospective inference lernen in einem neuen Model gespeichert?
+- Wird wieder über den ganzen Datensatz gelooped? 

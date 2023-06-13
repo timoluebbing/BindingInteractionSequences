@@ -74,6 +74,16 @@ class LSTM_Tester():
         self.model.load_state_dict(torch.load(self.model_save_path))
         self.model.eval()
 
+
+    def forward_pass(self, seq, interaction, state, outs, j):
+            
+        _input = seq[j, :, :].to(self.device)
+        out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
+        outs.append(out)
+        
+        return out, state, outs
+        
+        
     def evaluate(self, dataloader):
         
         loss = torch.tensor([0.0], device=self.device)
@@ -87,11 +97,9 @@ class LSTM_Tester():
         
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
-                
+
                 for j in range(seq_len):
-                    _input = seq[j, :, :].to(self.device)
-                    out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
-                    outs.append(out)
+                    _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
                     
                 outs = torch.stack(outs).to(self.device)
                 
@@ -103,7 +111,8 @@ class LSTM_Tester():
             print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {total_loss:8.4f}\n')
                 
             return total_loss
-    
+        
+
     def evaluate_detailed(self, dataloader):
         
         batch_losses = torch.tensor([0.0], device=self.device)
@@ -112,40 +121,29 @@ class LSTM_Tester():
         batch_losses_each_step_data = np.zeros((self.num_feature_types, 200))
                             
         with torch.no_grad():
-            for seq, label, interaction in tqdm(dataloader):
-                    
+            for seq, label, interaction in tqdm(dataloader):   
                 seq, label, interaction = self.model.restructure_data(seq, label, interaction)
-
                 seq_len, batch_size, num_features = seq.size()
-        
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
+                
                 batch_loss_each_step = np.zeros(200)
                 batch_loss_each_step_objects = np.zeros((self.num_obj, 200))
                 batch_loss_each_step_data = np.zeros((self.num_feature_types, 200))
                 
                 for j in range(seq_len):
-                    _input = seq[j, :, :].to(self.device)
-                    out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
-                    outs.append(out)
+                    out, state, outs = self.forward_pass(seq, interaction, state, outs, j)
                     
-                    single_loss = self.loss_function(out, label[j, :, :])
-                    single_loss = single_loss.item()
-                    batch_loss_each_step[j] = single_loss
-                    
-                    for i in range(self.num_obj):
-                        # Object specific loss
-                        single_object_out, single_object_label = self.get_data_by_object(out, label, i, j)
-                        object_loss = self.loss_function(single_object_out, single_object_label)
-                        batch_loss_each_step_objects[i, j] = object_loss
-                    
-                    for i in range(self.num_feature_types):
-                        # Data specific loss (coords, orientation, force)
-                        single_data_out, single_data_label = self.get_data_by_type(out, label, i, j)
-                        data_loss = self.loss_function(single_data_out, single_data_label)
-                        batch_loss_each_step_data[i, j] = data_loss
-                    
-                    
+                    (batch_loss_each_step, 
+                     batch_loss_each_step_objects, 
+                     batch_loss_each_step_data) = self.losses_single_obj_type(
+                                                    j, 
+                                                    label, 
+                                                    batch_loss_each_step, 
+                                                    batch_loss_each_step_objects, 
+                                                    batch_loss_each_step_data, 
+                                                    out)
+                     
                 outs_stacked = torch.stack(outs).to(self.device)
                 batch_loss = self.loss_function(outs_stacked, label)
                 
@@ -155,16 +153,43 @@ class LSTM_Tester():
                 batch_losses_each_step_data += batch_loss_each_step_data
             
             total_loss = batch_losses.item()
-            losses_each_step = batch_losses_each_step
-            losses_each_step_objects = batch_losses_each_step_objects
-            losses_each_step_data = batch_losses_each_step_data
         
-        return total_loss, losses_each_step, losses_each_step_objects, losses_each_step_data
+        return total_loss, batch_losses_each_step, batch_losses_each_step_objects, batch_losses_each_step_data
+
+
+    def losses_single_obj_type(
+        self, 
+        j, 
+        label, 
+        batch_loss_each_step, 
+        batch_loss_each_step_objects, 
+        batch_loss_each_step_data, 
+        out
+    ):
+        single_loss = self.loss_function(out, label[j, :, :])
+        single_loss = single_loss.item()
+        batch_loss_each_step[j] = single_loss
+                    
+        for i in range(self.num_obj):
+            # Object specific loss
+            single_object_out, single_object_label = self.get_data_by_object(out, label, i, j)
+            object_loss = self.loss_function(single_object_out, single_object_label)
+            batch_loss_each_step_objects[i, j] = object_loss
+                    
+        for i in range(self.num_feature_types):
+            # Data specific loss (coords, orientation, [force])
+            single_data_out, single_data_label = self.get_data_by_type(out, label, i, j)
+            data_loss = self.loss_function(single_data_out, single_data_label)
+            batch_loss_each_step_data[i, j] = data_loss
+            
+        return batch_loss_each_step, batch_loss_each_step_objects, batch_loss_each_step_data
+    
     
     def get_data_by_object(self, out, label, i, j):
         object_out = out[:, i*self.num_dim : (i+1)*self.num_dim]
         object_label = label[j, :, i*self.num_dim : (i+1)*self.num_dim]
         return object_out, object_label
+    
     
     def get_data_by_type(self, out, label, i, j):
         os, ls = [], []
@@ -180,6 +205,7 @@ class LSTM_Tester():
         
         return type_out, type_label
                 
+                
     def evaluate_model_with_renderer(self, dataloader, n_samples=4):
         
         seq, label, interaction = next(iter(dataloader))
@@ -191,13 +217,14 @@ class LSTM_Tester():
         outs = []
         
         for j in range(seq_len):
-            _input = seq[j, :, :].to(self.device)
-            # print(f"input shape step {j}: {_input.shape}")
-            out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
-            outs.append(out)
-            
+            _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
+
         outs = torch.stack(outs).to(self.device)
         
+        self.render_prediction(n_samples, seq, interaction, outs)
+
+
+    def render_prediction(self, n_samples, seq, interaction, outs):
         for i in range(n_samples):
             seq_index = i
             output_sequence = outs[:, seq_index, :]
@@ -214,6 +241,7 @@ class LSTM_Tester():
             renderer.render(loops=1)
             renderer.close()
     
+    
     def plot_losses_steps(self, losses, plot_path):
         fig = plt.figure()
         axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
@@ -226,6 +254,7 @@ class LSTM_Tester():
         
         plt.savefig(f'{plot_path}_losses.png')
         plt.show()
+    
     
     def plot_losses_objects(self, object_losses, plot_path):
         fig = plt.figure()
@@ -241,6 +270,7 @@ class LSTM_Tester():
         
         plt.savefig(f'{plot_path}_type_losses.png')
         plt.show()
+    
         
     def plot_losses_types(self, type_losses, plot_path):
         fig = plt.figure()
@@ -258,7 +288,7 @@ class LSTM_Tester():
         plt.show()
 
 
-def main(render=False):
+def main(render=True):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -272,8 +302,9 @@ def main(render=False):
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 0
-    no_forces = True
-    n_out = 12 if no_forces else 18
+    no_forces = False
+    no_forces_out = True
+    n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
@@ -299,13 +330,13 @@ def main(render=False):
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
     
-    # model_name = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200'
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_model = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200'
-
-    model_name = no_forces_model
+    no_forces_out_model = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_1000_lnorm_tfs200_nfo'
+    
+    model_name = no_forces_out_model
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -320,6 +351,7 @@ def main(render=False):
         num_feat=n_features,
         num_independent_feat=n_independent,
         num_interactions=n_interactions,
+        num_output=n_out,
         model_save_path=model_save_path
     )
 
