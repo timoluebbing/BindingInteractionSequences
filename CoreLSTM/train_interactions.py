@@ -16,7 +16,6 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
 def main(train=True, validate=True, test=True, render=True):
-    # sourcery skip: inline-variable, remove-redundant-boolean
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -30,7 +29,7 @@ def main(train=True, validate=True, test=True, render=True):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 180
-    no_forces = True
+    no_forces = False
     no_forces_out = True
     n_out = 12 if (no_forces or no_forces_out) else 18
 

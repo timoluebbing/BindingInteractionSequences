@@ -209,6 +209,7 @@ class Preprocessor():
 
         return torch.Tensor(df.values)
         
+        
     def create_inout_sequence(self, input_data, n_features):
         """ Creates input and label sequences for a single interaction sequence
 
@@ -220,9 +221,19 @@ class Preprocessor():
             tuple: Tuple of input and label sequence
         """        
         seq = input_data[:-1]
-        label = input_data[1:]
-        
-        return seq, label[:,:n_features]
+        label = input_data[1:]#
+
+        if n_features == 18:
+            return seq, label[:,:n_features]
+
+        if n_features == 12:
+            # das sollte noch über self.num_dim und self.num_features abstrahiert werden
+            ls = [
+                label[: , i*4 + i*2: (i+1)*4 + i*2]  
+                for i in range(self.num_features)
+            ]
+            return seq, torch.cat(ls, dim=1)
+    
     
     def get_LSTM_data_interaction(
         self, 
@@ -247,7 +258,7 @@ class Preprocessor():
         if no_forces and use_distances_and_motor:
             
             tensors = []
-            for i in range(3):
+            for i in range(self.num_features):
                 t = tensor_list[:, : , i*4 + i*2: (i+1)*4 + i*2]
                 tensors.append(t)
                 

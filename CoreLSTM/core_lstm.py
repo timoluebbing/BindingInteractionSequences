@@ -81,15 +81,17 @@ class CORE_NET(nn.Module):
     def forward(self, input_seq, interaction_label, state=None):
         
         # One hot interaction labels to interaction codes
-        one_hot_vector = F.one_hot(interaction_label, 
-                                  num_classes=self.num_interactions).to(self.device)
+        one_hot_vector = F.one_hot(
+            interaction_label, 
+            num_classes=self.num_interactions).to(self.device).to(torch.float32)
         
         # softmax
+        softmax = F.softmax(one_hot_vector, dim=1)
         
-        one_hot_vector = one_hot_vector.to(torch.float32)
-        interaction_code = F.relu(self.event_codes(one_hot_vector))
+        # Event code embedding
+        interaction_code = F.relu(self.event_codes(softmax))
         
-        # Embedding layer (without event code)
+        # Feature embedding (without event code)
         input_seq = F.relu(self.embedding_layer(input_seq))
         
         # Concat embedded code and features to one input

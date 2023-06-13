@@ -302,8 +302,8 @@ def main(render=True):
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 0
-    no_forces = False
-    no_forces_out = True
+    no_forces = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
@@ -336,7 +336,7 @@ def main(render=True):
     no_forces_model = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200'
     no_forces_out_model = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_1000_lnorm_tfs200_nfo'
     
-    model_name = no_forces_out_model
+    model_name = no_forces_model
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -366,10 +366,12 @@ def main(render=True):
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_steps"
+    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_obj"
+    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_type"
     tester.plot_losses_steps(losses, test_loss_path)
-    tester.plot_losses_objects(obj_losses, test_loss_path)
-    tester.plot_losses_types(type_losses, test_loss_path)
+    tester.plot_losses_objects(obj_losses, obj_loss_path)
+    tester.plot_losses_types(type_losses, type_loss_path)
 
     if render:
         # Check prediction for one example with renderer
