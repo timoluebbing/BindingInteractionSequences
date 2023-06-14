@@ -302,8 +302,8 @@ def main(render=True):
     ##### Dataset and DataLoader #####
     batch_size = 180
     seed = 2023
-    no_forces = True
-    no_forces_out = False
+    no_forces = False
+    no_forces_out = True
     n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
@@ -335,9 +335,9 @@ def main(render=True):
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
-    no_forces_out_model = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_1000_lnorm_tfs200_nfo'
+    no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    model_name = no_forces_best
+    model_name = no_forces_out_best
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
