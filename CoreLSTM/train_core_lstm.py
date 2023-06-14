@@ -28,36 +28,33 @@ class LSTM_Trainer():
         
     """
 
-    def __init__(self, 
-            loss_function, 
-            learning_rate, 
-            betas, 
-            weight_decay, 
-            batch_size, 
-            hidden_num,
-            teacher_forcing_steps,
-            teacher_forcing_dropouts, 
-            layer_norm, 
-            num_dim, 
-            num_feat,
-            num_independent_feat,
-            num_interactions,
-            num_output
-        ):
+    def __init__(
+        self, 
+        loss_function, 
+        learning_rate, 
+        betas, 
+        weight_decay, 
+        batch_size, 
+        hidden_num,
+        teacher_forcing_steps,
+        teacher_forcing_dropouts, 
+        layer_norm, 
+        num_dim, 
+        num_feat,
+        num_independent_feat,
+        num_interactions,
+        num_output
+    ):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
         print(f'DEVICE TrainM: {self.device}')
+        
         self.num_dim = num_dim
         self.num_feat = num_feat
         self.num_independent_feat = num_independent_feat
         self.num_interactions = num_interactions
         self.num_output = num_output
 
-        self.prepro = Preprocessor(
-            num_features=num_feat,
-            num_dimensions=num_dim
-        )
-        
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
             hidden_layer_size=hidden_num, 
@@ -104,6 +101,7 @@ class LSTM_Trainer():
         print(self.loss_function)
         print(self.optimizer)
 
+
     def train_and_validate(self, 
               epochs, 
               save_path, 
@@ -147,10 +145,12 @@ class LSTM_Trainer():
             
             seq, label, interaction = self.model.restructure_data(seq, label, interaction)
             
-            _, single_losses = self.train_single_sequence(seq, 
-                                                          label, 
-                                                          interaction, 
-                                                          single_losses)
+            _, single_losses = self.train_single_sequence(
+                seq, 
+                label, 
+                interaction, 
+                single_losses)
+
             self.optimizer.step()
             # self.lr_scheduler.step()
         
@@ -161,6 +161,7 @@ class LSTM_Trainer():
 
         return ep_loss
     
+
     def train_single_sequence(self, 
                               seq, 
                               label, 
@@ -222,11 +223,13 @@ class LSTM_Trainer():
 
         return outs, single_losses 
 
+
     def closed_loop_input(self, seq, j, output):
         distances = self.calculate_new_distances(output)
         motor_column = self.num_dim*self.num_feat
         motor_force = seq[j, :, motor_column:motor_column+2].squeeze()
         return torch.cat([output, motor_force, distances], dim=1)
+
 
     def calculate_new_distances(self, out: torch.Tensor):
         # shape out: [seq_len=1, batch_size, features]
@@ -248,6 +251,7 @@ class LSTM_Trainer():
         
         return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
     
+
     def validate(self, dataloader):
         
         loss = torch.tensor([0.0], device=self.device)
@@ -279,10 +283,12 @@ class LSTM_Trainer():
                 
             return ep_loss
     
+
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
     
+
     def plot_losses(self, losses, plot_path):
         fig = plt.figure()
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -29,8 +29,8 @@ def main(train=True, validate=True, test=True, render=True):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 180
-    no_forces = True
-    no_forces_out = False
+    no_forces = False
+    no_forces_out = True
     n_out = 12 if (no_forces or no_forces_out) else 18
 
     dataset = TimeSeriesDataset(
@@ -54,7 +54,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 30
+    epochs = 2500
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -112,11 +112,8 @@ def main(train=True, validate=True, test=True, render=True):
         train_loss_path = f"CoreLSTM/testing_predictions/train_loss/{model_name}"
         val_loss_path   = f"CoreLSTM/testing_predictions/val_loss/{model_name}"
         trainer.plot_losses(train_losses, train_loss_path)
-        trainer.plot_losses(val_losses,   val_loss_path)
-        
-        test_loss = trainer.validate(test_dataloader)
-        print(test_loss)
-        
+        trainer.plot_losses(val_losses,   val_loss_path)        
+
 
     if test:
         model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'

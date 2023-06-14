@@ -10,7 +10,7 @@ from tqdm import tqdm
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -268,7 +268,7 @@ class LSTM_Tester():
         # axes.set_yscale('log')
         axes.set_title('MSELoss for each test prediction time step')
         
-        plt.savefig(f'{plot_path}_object_losses.png')
+        plt.savefig(f'{plot_path}_type_losses.png')
         plt.show()
     
         
@@ -301,7 +301,7 @@ def main(render=True):
     
     ##### Dataset and DataLoader #####
     batch_size = 180
-    seed = 0
+    seed = 2023
     no_forces = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
@@ -316,7 +316,8 @@ def main(render=True):
     split = [0.6, 0.3, 0.1]
     
     
-    _, _, test_dataset = random_split(dataset, split, generator)
+    train_dataset, _, test_dataset = random_split(dataset, split, generator)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
     
     print(f"Number of test samples:      {len(test_dataset)} \n")
@@ -333,10 +334,10 @@ def main(render=True):
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
-    no_forces_model = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200'
+    no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
     no_forces_out_model = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_1000_lnorm_tfs200_nfo'
     
-    model_name = no_forces_model
+    model_name = no_forces_best
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -366,10 +367,12 @@ def main(render=True):
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_steps"
+    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_obj"
+    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_type"
     tester.plot_losses_steps(losses, test_loss_path)
-    tester.plot_losses_objects(obj_losses, test_loss_path)
-    tester.plot_losses_types(type_losses, test_loss_path)
+    tester.plot_losses_objects(obj_losses, obj_loss_path)
+    tester.plot_losses_types(type_losses, type_loss_path)
 
     if render:
         # Check prediction for one example with renderer
