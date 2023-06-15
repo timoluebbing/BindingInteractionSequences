@@ -13,7 +13,7 @@
 - Ist der Optimizer.step aufruf an der richtigen Stelle? -> beides ausprobieren
 
 ### Neu
-
+- Die Interaction codes haben mit teacher forcing und auch mit dropout derzeit sehr wenig einfluss auf den Loss beim Testen -> Retrospective Inference zur Zeit nicht möglich
 
 ## Bis zum nächten Meeting
 - [x] Distancen normalisieren, (wie?, z.B. auf [0, 1]) 
@@ -48,11 +48,16 @@
 ### Neu
 - [x] Fix batch size impact on test loss...
 - [x] Fix sum of losses
-- [ ] Fix sum of losses type 
-  - [ ] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
+- [x] Fix sum of losses type 
+  - [x] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
 - [x] no forces and no forces out
-- [ ] Fix renderer for no forces out
-- [ ] create in out seq auf dim=4 anpassen/ abstrahieren
+- [x] Fix renderer for no forces out
+- [x] create in out seq auf dim=4 anpassen/ abstrahieren
+- [x] timesteps variable
+- [ ] train with less timesteps
+- [ ] train good model with more dropouts and closed loop training
+  - [ ] mit forces und ohne forces (no forces out lass ich erstmal sein)
+  - [ ] Interaction label hat auf tf training wenig einfluss...
 - [ ] closed loop für no forces out (forces wieder mit rein)
 - [ ] interaction module
 - [ ] grid search hyperparameter tuning

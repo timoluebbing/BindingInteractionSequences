@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -29,12 +29,14 @@ def main(train=True, validate=True, test=True, render=True):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 180
-    no_forces = False
-    no_forces_out = True
+    timesteps=121
+    no_forces = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
 
     dataset = TimeSeriesDataset(
         interaction_paths, 
+        timesteps=timesteps,
         no_forces=no_forces,
         n_out=n_out,
         use_distances_and_motor=True
@@ -54,15 +56,15 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 2500
+    epochs = 2000
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.0001
     weight_decay = 0 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = 200
-    teacher_forcing_dropouts = False
+    teacher_forcing_steps = timesteps
+    teacher_forcing_dropouts = True
     
     hidden_num = 360
     layer_norm = True
@@ -78,6 +80,7 @@ def main(train=True, validate=True, test=True, render=True):
     model_name += '_tfd' if teacher_forcing_dropouts else ''
     model_name += '_nf' if no_forces else ''
     model_name += '_nfo' if no_forces_out else ''
+    model_name += f'_ts{timesteps}'
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
         
