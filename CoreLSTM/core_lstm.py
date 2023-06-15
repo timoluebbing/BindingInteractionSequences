@@ -50,7 +50,7 @@ class CORE_NET(nn.Module):
             in_features=self.num_interactions,
             out_features=self.num_interactions,
             device=self.device
-        )#.to(self.device)
+        )
         
         self.embedding_layer = nn.Linear(
             in_features=self.input_size - self.num_interactions,
@@ -63,24 +63,26 @@ class CORE_NET(nn.Module):
             hidden_size=self.hidden_size, 
             bias=True, 
             device=self.device
-            )#.to(self.device)
+            )
 
         if self.layer_norm:
             self.lnorm = nn.LayerNorm(
                 self.hidden_size, 
                 device=self.device
-            )#.to(self.device)
+            )
 
         self.linear = nn.Linear(
             in_features=self.hidden_size, 
             out_features=self.output_size,  
             device=self.device
-        )#.to(self.device)
+        )
 
 
     def forward(self, input_seq, interaction_label, state=None):
         
-        # One hot interaction labels to interaction codes
+        # interaction_label = (interaction_label + 1) % 4
+        
+        # One hot interaction labels
         one_hot_vector = F.one_hot(
             interaction_label, 
             num_classes=self.num_interactions).to(self.device).to(torch.float32)

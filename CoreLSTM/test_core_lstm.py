@@ -10,7 +10,7 @@ from tqdm import tqdm
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
@@ -32,6 +32,7 @@ class LSTM_Tester():
         batch_size, 
         hidden_num,
         layer_norm, 
+        timesteps,
         num_dim, 
         num_feat,
         num_independent_feat,
@@ -48,7 +49,8 @@ class LSTM_Tester():
         elif num_output == 18:
             self.num_dim = num_dim
             self.num_feature_types = self.num_dim // 2
-            
+        
+        self.timesteps = timesteps - 1 # input und label um einen step versetzt
         self.num_obj = num_feat
         self.num_interactions = num_interactions
         self.num_output = num_output
@@ -116,9 +118,9 @@ class LSTM_Tester():
     def evaluate_detailed(self, dataloader):
         
         batch_losses = torch.tensor([0.0], device=self.device)
-        batch_losses_each_step = np.zeros(200)
-        batch_losses_each_step_objects = np.zeros((self.num_obj, 200))
-        batch_losses_each_step_data = np.zeros((self.num_feature_types, 200))
+        batch_losses_each_step = np.zeros(self.timesteps)
+        batch_losses_each_step_objects = np.zeros((self.num_obj, self.timesteps))
+        batch_losses_each_step_data = np.zeros((self.num_feature_types, self.timesteps))
                             
         with torch.no_grad():
             for seq, label, interaction in tqdm(dataloader):   
@@ -127,9 +129,9 @@ class LSTM_Tester():
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
                 
-                batch_loss_each_step = np.zeros(200)
-                batch_loss_each_step_objects = np.zeros((self.num_obj, 200))
-                batch_loss_each_step_data = np.zeros((self.num_feature_types, 200))
+                batch_loss_each_step = np.zeros(self.timesteps)
+                batch_loss_each_step_objects = np.zeros((self.num_obj, self.timesteps))
+                batch_loss_each_step_data = np.zeros((self.num_feature_types, self.timesteps))
                 
                 for j in range(seq_len):
                     out, state, outs = self.forward_pass(seq, interaction, state, outs, j)
@@ -235,6 +237,7 @@ class LSTM_Tester():
                 n_features=self.num_obj,
                 n_input=self.input_size,
                 n_out=self.num_output,
+                timesteps=self.timesteps + 1,
                 interaction=int_label, 
                 in_tensor=input_sequence, 
                 out_tensor=output_sequence)
@@ -301,13 +304,15 @@ def main(render=True):
     
     ##### Dataset and DataLoader #####
     batch_size = 180
+    timesteps = 151
     seed = 2023
     no_forces = False
-    no_forces_out = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
+        timesteps=151,
         no_forces=no_forces,
         n_out=n_out,
         use_distances_and_motor=True)
@@ -337,7 +342,7 @@ def main(render=True):
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
     no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    model_name = no_forces_out_best
+    model_name = current_best_dropout
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -348,6 +353,7 @@ def main(render=True):
         batch_size=batch_size,
         hidden_num=hidden_num,
         layer_norm=layer_norm,
+        timesteps=timesteps,
         num_dim=n_dim,
         num_feat=n_features,
         num_independent_feat=n_independent,
@@ -379,7 +385,7 @@ def main(render=True):
         tester.evaluate_model_with_renderer(
             # train_dataloader, 
             test_dataloader,
-            n_samples=5
+            n_samples=10
         )
     
 if __name__ == '__main__':

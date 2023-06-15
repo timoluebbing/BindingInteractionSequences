@@ -240,6 +240,7 @@ class Preprocessor():
     def get_LSTM_data_interaction(
         self, 
         path, 
+        timesteps=200,
         no_forces=False, 
         use_distances_and_motor=False, 
         distances_and_motor_only=False
@@ -261,21 +262,21 @@ class Preprocessor():
             
             tensors = []
             for i in range(self.num_features):
-                t = tensor_list[:, : , i*4 + i*2: (i+1)*4 + i*2]
+                t = tensor_list[:, : timesteps, i*4 + i*2: (i+1)*4 + i*2]
                 tensors.append(t)
                 
-            dis_motor = tensor_list[:, :, (self.num_dimensions * self.num_features) : ]
+            dis_motor = tensor_list[:, : timesteps, (self.num_dimensions * self.num_features) : ]
             tensors.append(dis_motor)
             
             return torch.cat(tensors, dim=2)
         
         if use_distances_and_motor:
-            return tensor_list
+            return tensor_list[:, : timesteps, :]
 
         if distances_and_motor_only:
-            return tensor_list[:, :, (self.num_dimensions * self.num_features) : ]
+            return tensor_list[:, : timesteps, (self.num_dimensions * self.num_features) : ]
 
-        return tensor_list[:, :, : (self.num_dimensions * self.num_features)]
+        return tensor_list[:, : timesteps, : (self.num_dimensions * self.num_features)]
     
 
 def main(interaction = 'A', save_concat=False):

@@ -16,7 +16,8 @@ class Interaction_Renderer():
         n_features,
         n_input,
         n_out, 
-        interaction, 
+        interaction,
+        timesteps=201, 
         path=None, 
         in_tensor=None, 
         out_tensor=None
@@ -26,8 +27,8 @@ class Interaction_Renderer():
         self.n_out = n_out
         self.path = path
         self.fps = 30
-        self.max_fps = 201
-        self.max_fps_out = 200
+        self.max_frames = timesteps
+        self.max_frames_out = timesteps - 1
         self.width = 1000
         self.height = 500
         self.black, self.white, self.red = (0, 0, 0), (255, 255, 255), (255, 0, 0)
@@ -61,7 +62,7 @@ class Interaction_Renderer():
         text = my_font.render(self.interaction, False, self.black)
         self.screen.blit(text, (30, 30))
         
-        frame_mod =  frame % self.max_fps
+        frame_mod =  frame % self.max_frames
         
         xs, ys, angles = self.load_positions_at_frame_csv(frame_mod)
         for x, y, angle in zip(xs, ys, angles):
@@ -106,7 +107,7 @@ class Interaction_Renderer():
         self.screen.fill(self.white)
         self.draw_text()
         
-        frame_mod =  frame % self.max_fps_out
+        frame_mod =  frame % self.max_frames_out
         radius_in = 8
         radius_out = 10
         
@@ -152,7 +153,7 @@ class Interaction_Renderer():
             self.clock.tick(self.fps)
             frame += 1
             
-            if self.tensor_input is not None and frame % self.max_fps_out == 0:
+            if self.tensor_input is not None and frame % self.max_frames_out == 0:
                 current_loop += 1
             
             pygame.display.update()
