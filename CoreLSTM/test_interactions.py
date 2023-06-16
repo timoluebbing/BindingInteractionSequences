@@ -6,14 +6,14 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from CoreLSTM.test_core_lstm import LSTM_Tester
 
 
-def main(render=False):
+def main(render=True):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -28,8 +28,8 @@ def main(render=False):
     batch_size = 180
     timesteps = 126
     seed = 2023
-    no_forces = False
-    no_forces_out = True
+    no_forces = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
@@ -62,9 +62,10 @@ def main(render=False):
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
+    no_forces_best2 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_240_3000_lnorm_tfs121_tfd_nf_ts121'
     no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    model_name = no_forces_out_best
+    model_name = no_forces_best2
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()

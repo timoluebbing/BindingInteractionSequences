@@ -1,10 +1,10 @@
 
 import torch 
 from torch import nn
-from itertools import combinations
+import numpy as np
 import matplotlib.pyplot as plt
+import itertools as it
 from numpy import random
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import OneCycleLR, CyclicLR
 from torch.optim import Adam, AdamW, SGD
 from torch.nn import PairwiseDistance
@@ -18,7 +18,6 @@ sys.path.append(laptop_dir)
 # Before run: replace ... with current directory path
 
 from CoreLSTM.core_lstm import CORE_NET
-from Data_Preparation.data_preparation import Preprocessor
 
 
 class LSTM_Trainer():
@@ -54,6 +53,8 @@ class LSTM_Trainer():
         self.num_independent_feat = num_independent_feat
         self.num_interactions = num_interactions
         self.num_output = num_output
+        self.hidden_num = hidden_num
+        self.layer_norm = layer_norm
 
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
@@ -62,6 +63,8 @@ class LSTM_Trainer():
             layer_norm=layer_norm
         )
         self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.loss_function = loss_function
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
@@ -100,6 +103,121 @@ class LSTM_Trainer():
         print(self.model)
         print(self.loss_function)
         print(self.optimizer)
+
+
+    def set_batch_size(self, batch_size):
+        self.batch_size = batch_size
+
+
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
+
+    
+    def set_weight_decay(self, weight_decay):
+        self.weight_decay = weight_decay
+
+
+    def set_loss_function(self, loss_function):
+        self.loss_function = loss_function
+
+
+    def set_teacher_forcing_steps(self, teacher_forcing_steps):
+        self.teacher_forcing_steps = teacher_forcing_steps
+
+
+    def reset_model(self):
+        self.model = CORE_NET(
+            input_size=self.num_dim*self.num_feat+self.num_independent_feat+self.num_interactions, 
+            hidden_layer_size=self.hidden_num, 
+            output_size=self.num_output,
+            layer_norm=self.layer_norm
+        )
+
+    def reset_optimizer(self):
+        self.optimizer = AdamW(
+            params=self.model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+
+
+    def set_tuning_params(self, params: list):
+        setters = [
+            self.set_learning_rate,
+            self.set_weight_decay,
+            self.set_loss_function,
+            self.set_teacher_forcing_steps
+        ]
+        assert len(params) == len(setters)
+
+        for setter, param in zip(setters, params):
+            setter(param)
+
+        self.reset_model()
+        self.reset_optimizer()
+
+
+    def set_tuning_model_name(self, params: list, epochs):
+        model_name = f"core_lstm_{self.num_dim}_{self.num_feat}_{self.num_independent_feat}_{self.hidden_num}"
+        for param in params:
+            model_name += f"_{param}"
+        model_name += f"_{self.batch_size}"
+        model_name += f"_{epochs}"
+        model_name += '_lnorm' if self.layer_norm else ''
+        model_name += f'_tfs{self.teacher_forcing_steps}'
+        model_name += '_tfd' if self.teacher_forcing_dropouts else ''
+        return f"{model_name}.pt"
+
+
+    def tuning_module(
+        self, 
+        params,
+        epochs,
+        save_path,
+        train_dataloader,
+        validate,
+        validate_dataloader,
+        display_best_n_combinations=2,
+    ):
+        hyperparams = params.values()
+        combinations = list(it.product(*hyperparams))
+
+        all_train_losses, all_val_losses = [], []
+        min_val_losses = np.zeros(len(combinations))
+
+        for i, combination in enumerate(combinations):
+            
+            model_save_path = save_path + self.set_tuning_model_name(combination, epochs)
+            
+            print(f"Hyperparameter tuning iteration {i}: Params: {combination}")
+            print(f"Model save path: {model_save_path}")
+
+            self.set_tuning_params(combination)
+
+            train_losses, val_losses = self.train_and_validate(
+                epochs=epochs,
+                save_path=model_save_path,
+                train_dataloader=train_dataloader,
+                validate=validate,
+                val_dataloader=validate_dataloader
+            )
+
+            all_train_losses.append(train_losses)
+            all_val_losses.append(val_losses)
+
+            min_val_losses[i] = min(val_losses)
+        
+        min_idx = np.argsort(min_val_losses)[:display_best_n_combinations]
+        best_min_val_losses = min_val_losses[min_idx]#[:display_best_n_combinations]]
+        best_combinations = np.array(combinations)[min_idx]#[:display_best_n_combinations]]
+
+        print("Hpyerparameter tuning finished!")
+        print("Results summary: \n\n")
+        print(f"Validation loss: | Params: {list(params.keys())}")
+        for (loss, param) in zip(best_min_val_losses, best_combinations):
+            print(f"{loss:.13f}  | {param.tolist()}")
+
+        return all_train_losses, all_val_losses, best_min_val_losses, best_combinations, min_idx
 
 
     def train_and_validate(self, 
@@ -289,7 +407,7 @@ class LSTM_Trainer():
             return param_group['lr']
     
 
-    def plot_losses(self, losses, plot_path):
+    def plot_losses(self, losses, plot_path, show=True):
         fig = plt.figure()
         axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
         axes.plot(losses, 'r')
@@ -301,7 +419,8 @@ class LSTM_Trainer():
         
         plt.savefig(f'{plot_path}_losses.png')
         #plt.savefig(f'{plot_path}_losses.pdf')
-        plt.show()
+        if show:
+            plt.show()
 
 
     def save_model(self, path, model_state):

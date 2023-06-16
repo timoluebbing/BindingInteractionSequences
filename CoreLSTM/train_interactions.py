@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -28,7 +28,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    batch_size = 180
+    batch_size = 240
     timesteps=121
     no_forces = True
     no_forces_out = False
@@ -56,7 +56,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 2000
+    epochs = 10
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
@@ -127,6 +127,7 @@ def main(train=True, validate=True, test=True, render=True):
             batch_size=batch_size,
             hidden_num=hidden_num,
             layer_norm=layer_norm,
+            timesteps=timesteps,
             num_dim=n_dim,
             num_feat=n_features,
             num_independent_feat=n_independent,
