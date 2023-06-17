@@ -68,36 +68,13 @@ class LSTM_Trainer():
         self.loss_function = loss_function
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
-        
-        self.optimizer2 = Adam(
-            self.model.parameters(), 
-            lr=learning_rate, 
-            betas=betas, 
-            weight_decay=weight_decay
-        )
-        
+                
         self.optimizer = AdamW(
             params=self.model.parameters(),
             lr=learning_rate,
             betas=betas,
             weight_decay=weight_decay
         )
-
-        self.optimizer3 = SGD(
-            params=self.model.parameters(),
-            lr=learning_rate,
-            momentum=0.95,
-            weight_decay=weight_decay
-        )
-        # Geht nur mit SGD, da Adam die lr selber reguliert
-        # self.lr_scheduler = CyclicLR(
-        #     self.optimizer,
-        #     max_lr=0.001, 
-        #     base_lr=learning_rate,
-        #     mode="exp_range",
-        #     step_size_up=1500,
-        #     gamma=0.99
-        # )
 
         print('Initialized model!')
         print(self.model)
@@ -125,6 +102,14 @@ class LSTM_Trainer():
         self.teacher_forcing_steps = teacher_forcing_steps
 
 
+    def set_hidden_num(self, hidden_num):
+        self.hidden_num = hidden_num
+
+
+    def set_layer_norm(self, layer_norm):
+        self.layer_norm = layer_norm
+
+
     def reset_model(self):
         self.model = CORE_NET(
             input_size=self.num_dim*self.num_feat+self.num_independent_feat+self.num_interactions, 
@@ -143,6 +128,8 @@ class LSTM_Trainer():
 
     def set_tuning_params(self, params: list):
         setters = [
+            self.set_hidden_num,
+            self.set_layer_norm,
             self.set_learning_rate,
             self.set_weight_decay,
             self.set_loss_function,
@@ -157,13 +144,10 @@ class LSTM_Trainer():
         self.reset_optimizer()
 
 
-    def set_tuning_model_name(self, params: list, epochs):
+    def set_tuning_model_name(self, epochs):
         model_name = f"core_lstm_{self.num_dim}_{self.num_feat}_{self.num_independent_feat}_{self.hidden_num}"
-        for param in params:
-            model_name += f"_{param}"
-        model_name += f"_{self.batch_size}"
-        model_name += f"_{epochs}"
         model_name += '_lnorm' if self.layer_norm else ''
+        model_name += f"_{self.learning_rate}_{self.weight_decay}_{self.loss_function}_{self.batch_size}_{epochs}"
         model_name += f'_tfs{self.teacher_forcing_steps}'
         model_name += '_tfd' if self.teacher_forcing_dropouts else ''
         return f"{model_name}.pt"
@@ -187,12 +171,12 @@ class LSTM_Trainer():
 
         for i, combination in enumerate(combinations):
             
-            model_save_path = save_path + self.set_tuning_model_name(combination, epochs)
+            self.set_tuning_params(combination)
+            
+            model_save_path = save_path + self.set_tuning_model_name(epochs)
             
             print(f"Hyperparameter tuning iteration {i}: Params: {combination}")
             print(f"Model save path: {model_save_path}")
-
-            self.set_tuning_params(combination)
 
             train_losses, val_losses = self.train_and_validate(
                 epochs=epochs,
@@ -239,7 +223,7 @@ class LSTM_Trainer():
             train_losses.append(ep_trn_loss)
             
             if validate and epoch >= epochs-n_last_epochs:
-                ep_val_loss = self.validate(val_dataloader)
+                ep_val_loss = self.validate(val_dataloader, epoch)
                 val_losses.append(ep_val_loss)
                 
                 if ep_val_loss < min_loss:
@@ -259,7 +243,7 @@ class LSTM_Trainer():
         self.model.zero_grad()
         self.optimizer.zero_grad()
 
-        for seq, label, interaction in tqdm(dataloader):
+        for seq, label, interaction in dataloader:
             
             seq, label, interaction = self.model.restructure_data(seq, label, interaction)
             
@@ -274,8 +258,9 @@ class LSTM_Trainer():
         
         with torch.no_grad():
             ep_loss = single_losses.clone().item()
-            avg_loss = ep_loss / 1200 # (len(dataloader) * self.batch_size)
-            print(f'Epoch: {epoch:1} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f} - LR: {self.get_lr(self.optimizer):.6f}')
+            if epoch % 20 == 0:
+                avg_loss = ep_loss / 1200 # (len(dataloader) * self.batch_size)
+                print(f'Epoch: {epoch:4} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f} - LR: {self.get_lr(self.optimizer):.6f}')
 
         return ep_loss
     
@@ -370,13 +355,13 @@ class LSTM_Trainer():
         return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
     
 
-    def validate(self, dataloader):
+    def validate(self, dataloader, epoch):
         
         loss = torch.tensor([0.0], device=self.device)
         self.model.eval()
         
         with torch.no_grad():
-            for seq, label, interaction in tqdm(dataloader):
+            for seq, label, interaction in dataloader:
                     
                 seq, label, interaction = self.model.restructure_data(seq, label, interaction)
 
@@ -396,8 +381,9 @@ class LSTM_Trainer():
                 loss += single_loss
                 
             ep_loss = loss.clone().item()
-            avg_loss = ep_loss / (len(dataloader) * self.batch_size)
-            print(f'\nEvaluate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}\n')
+            if epoch % 20 == 0:
+                avg_loss = ep_loss / (len(dataloader) * self.batch_size)
+                print(f'Validate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}')
                 
             return ep_loss
     

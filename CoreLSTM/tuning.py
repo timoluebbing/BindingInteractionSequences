@@ -1,7 +1,4 @@
 import torch 
-from torch import nn
-import numpy as np
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torch.nn import MSELoss, L1Loss, HuberLoss
 
@@ -12,7 +9,6 @@ sys.path.append(pc_dir)
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
-from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
@@ -57,7 +53,8 @@ def main(validate=True):
     
     
     ##### Model parameters #####
-    epochs = 10
+    epochs = 1500
+
     hidden_num = 360
     layer_norm = True
     n_dim = 4 if no_forces else 6
@@ -76,9 +73,11 @@ def main(validate=True):
     teacher_forcing_dropouts = True
 
     params = {
+        'hidden': [240, 480], # 360
+        'lnorm': [True], # False
         'lr': [0.001, 0.0001],
-        'wd': [0.0],
-        'loss': [mse_loss, l1_loss, huber_loss],
+        'wd': [0.0, 0.01],
+        'loss': [mse_loss, huber_loss], #l1_loss
         'tf_steps': [120],
     }
     
@@ -115,8 +114,8 @@ def main(validate=True):
     best_train_losses = train_losses[best_idx[0]]
     best_val_losses = val_losses[best_idx[0]]
 
-    train_loss_path = f"CoreLSTM/testing_predictions/tuning/test_train"
-    val_loss_path   = f"CoreLSTM/testing_predictions/tuning/test_val"
+    train_loss_path = "CoreLSTM/testing_predictions/tuning/best_train"
+    val_loss_path   = "CoreLSTM/testing_predictions/tuning/best_val"
     trainer.plot_losses(best_train_losses, train_loss_path, show=False)
     trainer.plot_losses(best_val_losses,   val_loss_path, show=False)        
 
