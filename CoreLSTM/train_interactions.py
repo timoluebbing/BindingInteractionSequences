@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(laptop_dir)      
+sys.path.append(pc_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -28,7 +28,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    batch_size = 180
+    batch_size = 240
     timesteps=121
     no_forces = True
     no_forces_out = False

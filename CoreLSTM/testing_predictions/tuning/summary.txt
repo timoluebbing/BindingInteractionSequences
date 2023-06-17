@@ -1,0 +1,6 @@
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0013339659199  | [240, True, 0.001, 0.01, HuberLoss(), 120]
+0.0013405320933  | [240, True, 0.001, 0.0, HuberLoss(), 120]
+0.0014138482511  | [480, True, 0.001, 0.01, HuberLoss(), 120]
+0.0017718364252  | [480, True, 0.001, 0.0, HuberLoss(), 120]
+0.0020350718405  | [240, True, 0.0001, 0.0, HuberLoss(), 120]
