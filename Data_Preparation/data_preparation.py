@@ -240,6 +240,7 @@ class Preprocessor():
     def get_LSTM_data_interaction(
         self, 
         path, 
+        skip_first_n_steps=10,
         timesteps=200,
         no_forces=False, 
         use_distances_and_motor=False, 
@@ -254,29 +255,31 @@ class Preprocessor():
             
         Returns:
             torch.Tensor: Tensor of shape (num sequences, sequence_length, features)
-        """        
+        """      
+        timesteps = timesteps+skip_first_n_steps
+          
         sequence_list = self.load_concat_dataframe(path)
-        tensor_list = self.dataframes_to_tensor(sequence_list)
+        tensor = self.dataframes_to_tensor(sequence_list)
 
         if no_forces and use_distances_and_motor:
             
             tensors = []
             for i in range(self.num_features):
-                t = tensor_list[:, : timesteps, i*4 + i*2: (i+1)*4 + i*2]
+                t = tensor[: ,skip_first_n_steps : timesteps, i*4 + i*2: (i+1)*4 + i*2]
                 tensors.append(t)
                 
-            dis_motor = tensor_list[:, : timesteps, (self.num_dimensions * self.num_features) : ]
+            dis_motor = tensor[: ,skip_first_n_steps : timesteps, (self.num_dimensions * self.num_features) : ]
             tensors.append(dis_motor)
             
             return torch.cat(tensors, dim=2)
         
         if use_distances_and_motor:
-            return tensor_list[:, : timesteps, :]
+            return tensor[: ,skip_first_n_steps : timesteps, :]
 
         if distances_and_motor_only:
-            return tensor_list[:, : timesteps, (self.num_dimensions * self.num_features) : ]
+            return tensor[: ,skip_first_n_steps : timesteps, (self.num_dimensions * self.num_features) : ]
 
-        return tensor_list[:, : timesteps, : (self.num_dimensions * self.num_features)]
+        return tensor[: ,skip_first_n_steps : timesteps, : (self.num_dimensions * self.num_features)]
     
 
 def main(interaction = 'A', save_concat=False):

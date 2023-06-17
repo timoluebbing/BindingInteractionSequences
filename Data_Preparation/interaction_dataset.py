@@ -34,6 +34,7 @@ class TimeSeriesDataset(Dataset):
             train, val, test (bool)       : Flags to select dataset purpose 
         """
         self.interaction_paths = interaction_paths
+        self.skip_first_n_steps = 10
         self.timesteps = timesteps
         self.n_out = n_out
         self.no_forces = no_forces
@@ -78,6 +79,7 @@ class TimeSeriesDataset(Dataset):
                 print(f"Loading interaction {interaction} from {path}")
                 interaction_data = self.prepro.get_LSTM_data_interaction(
                     path, 
+                    self.skip_first_n_steps,
                     self.timesteps,
                     self.no_forces,
                     self.use_distances_and_motor)
@@ -104,7 +106,7 @@ def main():
     ##### Dataset and DataLoader #####
     dataset = TimeSeriesDataset(
         interaction_paths,
-        timesteps=151,
+        timesteps=200,
         n_out=12,
         no_forces=True,
     )

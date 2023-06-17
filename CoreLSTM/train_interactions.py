@@ -56,14 +56,14 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 2000
+    epochs = 3000
     
     mse_loss = nn.MSELoss()
     criterion = mse_loss
     lr = 0.0001
     weight_decay = 0 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = timesteps
+    teacher_forcing_steps = timesteps - (timesteps / 2)
     teacher_forcing_dropouts = True
     
     hidden_num = 360
@@ -127,6 +127,7 @@ def main(train=True, validate=True, test=True, render=True):
             batch_size=batch_size,
             hidden_num=hidden_num,
             layer_norm=layer_norm,
+            timesteps=timesteps,
             num_dim=n_dim,
             num_feat=n_features,
             num_independent_feat=n_independent,

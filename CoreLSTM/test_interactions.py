@@ -13,7 +13,7 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from CoreLSTM.test_core_lstm import LSTM_Tester
 
 
-def main(render=False):
+def main(render=True):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -28,8 +28,8 @@ def main(render=False):
     batch_size = 180
     timesteps = 126
     seed = 2023
-    no_forces = False
-    no_forces_out = True
+    no_forces = True
+    no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     
     dataset = TimeSeriesDataset(
@@ -62,9 +62,10 @@ def main(render=False):
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
+    no_forces_dropout60 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_3000_lnorm_tfs60.5_tfd_nf_ts121'
     no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    model_name = no_forces_out_best
+    model_name = no_forces_dropout60
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
@@ -92,13 +93,13 @@ def main(render=False):
     
     print(f"{total_loss:.8f} * timesteps = {total_loss * (timesteps-1)}")
     print(f"{sum(losses):.8f} * n_obj     = {sum(losses) * n_features}")
-    print(f"{sum(losses):.8f} * n_types   = {sum(losses) * (n_out/n_dim)}")
+    print(f"{sum(losses):.8f} * n_types   = {sum(losses) * (n_dim/2)}")
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_steps"
-    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_obj"
-    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_type"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
     tester.plot_losses_steps(losses, test_loss_path)
     tester.plot_losses_objects(obj_losses, obj_loss_path)
     tester.plot_losses_types(type_losses, type_loss_path)
