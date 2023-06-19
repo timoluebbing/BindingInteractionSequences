@@ -8,6 +8,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch._C import device
 from torch.utils.data import DataLoader
+from numpy.random import randint
 
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
@@ -80,7 +81,7 @@ class CORE_NET(nn.Module):
 
     def forward(self, input_seq, interaction_label, state=None):
         
-        # interaction_label = (interaction_label + 1) % 4
+        # interaction_label = (interaction_label + randint(0, 4)) % 4
         
         # One hot interaction labels
         one_hot_vector = F.one_hot(

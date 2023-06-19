@@ -54,6 +54,7 @@
 - [x] Fix renderer for no forces out
 - [x] create in out seq auf dim=4 anpassen/ abstrahieren
 - [ ] closed loop für no forces out (forces wieder mit rein)
+- [ ] dropout closed loop in test class!
 - [ ] interaction module
 - [ ] grid search hyperparameter tuning
 

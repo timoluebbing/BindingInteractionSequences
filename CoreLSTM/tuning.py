@@ -25,7 +25,7 @@ def main(validate=True):
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    batch_size = 240
+    batch_size = 360
     timesteps=121
     no_forces = True
     no_forces_out = False
@@ -53,7 +53,7 @@ def main(validate=True):
     
     
     ##### Model parameters #####
-    epochs = 1500
+    epochs = 3000
 
     hidden_num = 360
     layer_norm = True
@@ -73,12 +73,12 @@ def main(validate=True):
     teacher_forcing_dropouts = True
 
     params = {
-        'hidden': [240, 480], # 360
-        'lnorm': [True], # False
+        'hidden': [360, 520], # 360
+        'lnorm': [False], # False
         'lr': [0.001, 0.0001],
-        'wd': [0.0, 0.01],
-        'loss': [mse_loss, huber_loss], #l1_loss
-        'tf_steps': [120],
+        'wd': [0.01, 0.05],
+        'loss': [huber_loss], #l1_loss
+        'tf_steps': [80],
     }
     
     model_save_path = 'CoreLSTM/models/tuning/'
@@ -114,8 +114,8 @@ def main(validate=True):
     best_train_losses = train_losses[best_idx[0]]
     best_val_losses = val_losses[best_idx[0]]
 
-    train_loss_path = "CoreLSTM/testing_predictions/tuning/best_train"
-    val_loss_path   = "CoreLSTM/testing_predictions/tuning/best_val"
+    train_loss_path = "CoreLSTM/testing_predictions/tuning/best2_train"
+    val_loss_path   = "CoreLSTM/testing_predictions/tuning/best2_val"
     trainer.plot_losses(best_train_losses, train_loss_path, show=False)
     trainer.plot_losses(best_val_losses,   val_loss_path, show=False)        
 

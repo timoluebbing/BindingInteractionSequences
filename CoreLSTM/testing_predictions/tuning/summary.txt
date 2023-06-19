@@ -1,6 +1,40 @@
+No forces: 1500 epochs, 240 batch_size, 120 timesteps, seed 2023, dropout=True
+
 Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
 0.0013339659199  | [240, True, 0.001, 0.01, HuberLoss(), 120]
 0.0013405320933  | [240, True, 0.001, 0.0, HuberLoss(), 120]
 0.0014138482511  | [480, True, 0.001, 0.01, HuberLoss(), 120]
 0.0017718364252  | [480, True, 0.001, 0.0, HuberLoss(), 120]
 0.0020350718405  | [240, True, 0.0001, 0.0, HuberLoss(), 120]
+
+
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0006528521189  | [360, False, 0.001, 0.0, HuberLoss(), 120]
+0.0007809165400  | [360, False, 0.0005, 0.0, HuberLoss(), 120]
+0.0007893364527  | [240, False, 0.001, 0.0, HuberLoss(), 120]
+0.0008563083829  | [240, False, 0.0005, 0.0, HuberLoss(), 120]
+0.0012934189290  | [240, True, 0.0005, 0.0, HuberLoss(), 120]
+
+
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0007245417219  | [360, False, 0.001, 0.001, HuberLoss(), 120]
+0.0007339589065  | [240, False, 0.0005, 0.001, HuberLoss(), 120]
+0.0007677635294  | [360, False, 0.0005, 0.05, HuberLoss(), 120]
+0.0008356142789  | [360, False, 0.001, 0.05, HuberLoss(), 120]
+0.0008636326529  | [240, False, 0.001, 0.05, HuberLoss(), 120]
+
+                                                                        |
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0012406370370  | [360, False, 0.0005, 0.01, HuberLoss(), 100]
+0.0012974950951  | [360, False, 0.001, 0.01, HuberLoss(), 100]
+0.0013074510498  | [360, False, 0.001, 0.05, HuberLoss(), 100]
+0.0013266818132  | [360, False, 0.0005, 0.05, HuberLoss(), 100]
+0.0016854449641  | [360, True, 0.001, 0.05, HuberLoss(), 100]
+
+(3000 epochs)
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0015461102594  | [360, False, 0.0005, 0.05, HuberLoss(), 80]
+0.0015908107162  | [360, False, 0.001, 0.0, HuberLoss(), 80]
+0.0015953209950  | [360, False, 0.0005, 0.0, HuberLoss(), 80]
+0.0015980375465  | [360, False, 0.001, 0.05, HuberLoss(), 80]
+0.0018080337904  | [120, False, 0.0005, 0.05, HuberLoss(), 80]

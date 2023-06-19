@@ -25,8 +25,8 @@ def main(render=True):
     interaction_paths = dict(zip(interactions_num, paths))
     
     ##### Dataset and DataLoader #####
-    batch_size = 180
-    timesteps = 126
+    batch_size = 240
+    timesteps = 121
     seed = 2023
     no_forces = True
     no_forces_out = False
@@ -51,7 +51,7 @@ def main(render=True):
     
     ##### Model parameters #####
     hidden_num = 360
-    layer_norm = True
+    layer_norm = False
     
     n_dim = 4 if no_forces else 6
     n_features = 3
@@ -63,17 +63,21 @@ def main(render=True):
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
     no_forces_dropout60 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_3000_lnorm_tfs60.5_tfd_nf_ts121'
-    no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
-    
-    model_name = no_forces_dropout60
     no_forces_best2 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_240_3000_lnorm_tfs121_tfd_nf_ts121'
     no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    model_name = no_forces_best2
+    tuning0 = 'core_lstm_4_3_5_360_0.001_0.001_HuberLoss()_240_1500_tfs120_tfd'
+    tuning1 = 'core_lstm_4_3_5_360_0.0005_0.01_HuberLoss()_240_1500_tfs100_tfd'
+
+    tuning_train = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_3000_tfs120_tfd_nf_ts121'
+
+    model_name = tuning1
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
+    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
     mse_loss = nn.MSELoss()
-    criterion = mse_loss
+    huber_loss = nn.HuberLoss()
+    criterion = huber_loss
     
     tester = LSTM_Tester(
         loss_function=criterion,

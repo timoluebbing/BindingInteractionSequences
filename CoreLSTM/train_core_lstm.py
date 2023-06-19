@@ -383,7 +383,7 @@ class LSTM_Trainer():
             ep_loss = loss.clone().item()
             if epoch % 20 == 0:
                 avg_loss = ep_loss / (len(dataloader) * self.batch_size)
-                print(f'Validate: Avg. batch loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}')
+                print(f'Validate:     Avg. loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}')
                 
             return ep_loss
     

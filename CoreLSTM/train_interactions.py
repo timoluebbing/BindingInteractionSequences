@@ -59,15 +59,16 @@ def main(train=True, validate=True, test=True, render=True):
     epochs = 3000
     
     mse_loss = nn.MSELoss()
-    criterion = mse_loss
-    lr = 0.0001
-    weight_decay = 0 # 0.01
+    huber_loss = nn.HuberLoss()
+    criterion = huber_loss
+    lr = 0.0005
+    weight_decay = 0.01 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = timesteps - (timesteps / 2)
+    teacher_forcing_steps = 120
     teacher_forcing_dropouts = True
     
     hidden_num = 360
-    layer_norm = True
+    layer_norm = False
 
     n_dim = 4 if no_forces else 6
     n_features = 3
@@ -119,8 +120,6 @@ def main(train=True, validate=True, test=True, render=True):
 
 
     if test:
-        model_path = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_400_lnorm_tfs200.pt'
-        current_best = 'CoreLSTM/models/core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200.pt'
         
         tester = LSTM_Tester(
             loss_function=criterion,
