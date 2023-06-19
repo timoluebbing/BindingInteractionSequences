@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
@@ -58,6 +58,9 @@ def main(render=True):
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
     
+    teacher_forcing_steps = 80
+    teacher_forcing_dropouts = True
+    
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
@@ -68,10 +71,11 @@ def main(render=True):
     
     tuning0 = 'core_lstm_4_3_5_360_0.001_0.001_HuberLoss()_240_1500_tfs120_tfd'
     tuning1 = 'core_lstm_4_3_5_360_0.0005_0.01_HuberLoss()_240_1500_tfs100_tfd'
+    tuning2 = 'core_lstm_4_3_5_360_0.0005_0.05_HuberLoss()_240_3000_tfs80_tfd'
 
     tuning_train = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_3000_tfs120_tfd_nf_ts121'
 
-    model_name = tuning1
+    model_name = tuning2
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
@@ -85,6 +89,8 @@ def main(render=True):
         hidden_num=hidden_num,
         layer_norm=layer_norm,
         timesteps=timesteps,
+        teacher_forcing_steps=teacher_forcing_steps,
+        teacher_forcing_dropouts=teacher_forcing_dropouts,
         num_dim=n_dim,
         num_feat=n_features,
         num_independent_feat=n_independent,
@@ -105,9 +111,9 @@ def main(render=True):
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
-    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
-    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
+    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
+    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
     tester.plot_losses_steps(losses, test_loss_path)
     tester.plot_losses_objects(obj_losses, obj_loss_path)
     tester.plot_losses_types(type_losses, type_loss_path)

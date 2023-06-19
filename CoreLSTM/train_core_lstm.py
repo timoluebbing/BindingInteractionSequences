@@ -68,6 +68,9 @@ class LSTM_Trainer():
         self.loss_function = loss_function
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
+        self.dropout_chance = 0.0
+        self.random_thresholds = random.random_sample((teacher_forcing_steps,))
+        
                 
         self.optimizer = AdamW(
             params=self.model.parameters(),
@@ -290,14 +293,13 @@ class LSTM_Trainer():
 
         state = self.model.init_hidden(batch_size=batch_size)
         outs = []
-        random_values = random.random_sample((seq_len,))
-        dropout_chance = 0.0
+        self.reset_dropout_chance()
 
         for j in range(seq_len):
             
             if self.teacher_forcing_dropouts:
-                not_a_dropout = random_values[j] > dropout_chance
-                dropout_chance += 1 / self.teacher_forcing_steps
+                not_a_dropout = self.random_thresholds[j] > self.dropout_chance
+                self.dropout_chance += 1 / self.teacher_forcing_steps
 
             if (
                 j < self.teacher_forcing_steps           # -> Ignore dropout functionality
@@ -326,6 +328,10 @@ class LSTM_Trainer():
 
         return outs, single_losses 
 
+    
+    def reset_dropout_chance(self):
+        self.dropout_chance = 0.0
+        
 
     def closed_loop_input(self, seq, j, output):
         distances = self.calculate_new_distances(output)

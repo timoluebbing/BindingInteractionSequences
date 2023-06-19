@@ -81,7 +81,7 @@ class CORE_NET(nn.Module):
 
     def forward(self, input_seq, interaction_label, state=None):
         
-        # interaction_label = (interaction_label + randint(0, 4)) % 4
+        interaction_label = (interaction_label + randint(0, 4)) % 4
         
         # One hot interaction labels
         one_hot_vector = F.one_hot(
