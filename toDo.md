@@ -48,21 +48,28 @@
 ### Neu
 - [x] Fix batch size impact on test loss...
 - [x] Fix sum of losses
-- [ ] Fix sum of losses type 
-  - [ ] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
+- [] Fix sum of losses type 
+  - [x] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
 - [x] no forces and no forces out
 - [x] Fix renderer for no forces out
 - [x] create in out seq auf dim=4 anpassen/ abstrahieren
 - [ ] closed loop für no forces out (forces wieder mit rein)
-- [ ] dropout closed loop in test class!
+- [x] dropout closed loop in test class!
+- [x] grid search hyperparameter tuning
+  - [ ] auf pretrained model ohne dropouts, dann aber ganz 'viele'
 - [ ] interaction module
-- [ ] grid search hyperparameter tuning
+- [ ] nach latex template fragen
 
 ### Retrospective Inference:
-- Wir haben das pretrained model, sind dann alle gradients außer die von den event codes und softmax eingefrohren?
 - Statt den event onehot labels wie [0, 1, 0, 0] wird jetzt immer für jede Sequenz [1/4 ...] genommen als input zur event code layer.
+  - Im reprise paper ist der 'context', der inferiert wird außerhalb des lstms als leerer tensor initialisiert und wird dann an den input des lstms concat. Besteht dort der Input dann aus einem Tensor, wobei dieser zum Teil required_grad=T und F gleichzeigig hat? Wie wird der Context dort verändert, kann der optimizer nicht nur auf die model parameter zugreifen?
+  - Bei uns ist der event_code teil des lstms und wird als Zahl (0 bis 3) und danach mittels one_hot initialisert. Wie kann ich den inferierten event code auslesen? (Frage weiter unten) 
+- Wir haben das pretrained model, sind dann alle gradients außer die von den event codes und softmax eingefrohren? bzw softmax hat ja keinen gradient
 - Kein Vergleich der Onehots sondern nur des lstm outputs
   - Also nach ri ist event code z.B. [0.1, 0.2, 0.6, 0.1]. Keinen Vergleich mit loss wie mse zu [0, 0, 1, 0].
   - Nach dem die ganze Sequenz durchgelaufen ist wird der loss zurück auf die event codes layer geführt (plus softmax). Den adaptierten neuen event code 'output' kann man dann wie auslesen?
+    - Mit [1/4, ..., 1/4] * event_codes.weight + event_codes.bias ? Aber das wird ja dann für alle interactionen in der weight matrix generalisiert. hat man iwie zugriff auf die softmax operation
 - Wird das retrospective inference lernen in einem neuen Model gespeichert?
-- Wird wieder über den ganzen Datensatz gelooped? 
+  - Oder ist das Ziel hierbei immer nur eine Sequenz anzuschauen und manuel die Interaktion zu inferieren.
+  - Oder: Wird wieder über den ganzen Datensatz gelooped? 
+- Dann auch so wie beim Training mit dropouts und closed loop?
