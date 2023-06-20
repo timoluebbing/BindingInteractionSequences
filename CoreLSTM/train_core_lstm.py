@@ -42,7 +42,8 @@ class LSTM_Trainer():
         num_feat,
         num_independent_feat,
         num_interactions,
-        num_output
+        num_output,
+        pretrained_path=None,
     ):
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
@@ -55,6 +56,7 @@ class LSTM_Trainer():
         self.num_output = num_output
         self.hidden_num = hidden_num
         self.layer_norm = layer_norm
+        self.pretrained_path = pretrained_path
 
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
@@ -62,6 +64,10 @@ class LSTM_Trainer():
             output_size=num_output,
             layer_norm=layer_norm
         )
+        
+        if pretrained_path is not None:
+            self.model.load_state_dict(torch.load(self.pretrained_path))
+            
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -297,7 +303,7 @@ class LSTM_Trainer():
 
         for j in range(seq_len):
             
-            if self.teacher_forcing_dropouts:
+            if self.teacher_forcing_dropouts and j < self.teacher_forcing_steps:
                 not_a_dropout = self.random_thresholds[j] > self.dropout_chance
                 self.dropout_chance += 1 / self.teacher_forcing_steps
 

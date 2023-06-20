@@ -56,9 +56,14 @@
 - [ ] closed loop für no forces out (forces wieder mit rein)
 - [x] dropout closed loop in test class!
 - [x] grid search hyperparameter tuning
-  - [ ] auf pretrained model ohne dropouts, dann aber ganz 'viele'
+  - [x] auf pretrained model ohne dropouts, dann aber ganz 'viele'
+- [ ] reslayer output output + input
 - [ ] interaction module
 - [ ] nach latex template fragen
+
+Notizen: 
+- Hyperparameter tuning: huber loss besser als mse, lnorm raus
+- modelle mit viel teacher forcing lernen nur anhand der jeweiligen letzten Zeitschritte und der interaction code bleibt unberücksichtigt -> kein Unterschied des losses zu random interaction labels. 
 
 ### Retrospective Inference:
 - Statt den event onehot labels wie [0, 1, 0, 0] wird jetzt immer für jede Sequenz [1/4 ...] genommen als input zur event code layer.

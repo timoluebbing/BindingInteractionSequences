@@ -65,15 +65,15 @@ def main(render=True):
     current_best_dropout = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200_tfd'
     current_best_dropout_wd = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0.01_180_2000_lnorm_tfs200_tfd'
     no_forces_best = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nf'
-    no_forces_dropout60 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_180_3000_lnorm_tfs60.5_tfd_nf_ts121'
     no_forces_best2 = 'core_lstm_4_3_5_360_MSELoss()_0.0001_0_240_3000_lnorm_tfs121_tfd_nf_ts121'
     no_forces_out_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2500_lnorm_tfs200_nfo'
     
-    tuning0 = 'core_lstm_4_3_5_360_0.001_0.001_HuberLoss()_240_1500_tfs120_tfd'
+    tuning0 = 'core_lstm_4_3_5_360_0.001_0.0_HuberLoss()_240_1500_tfs120_tfd'
     tuning1 = 'core_lstm_4_3_5_360_0.0005_0.01_HuberLoss()_240_1500_tfs100_tfd'
     tuning2 = 'core_lstm_4_3_5_360_0.0005_0.05_HuberLoss()_240_3000_tfs80_tfd'
 
     tuning_train = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_3000_tfs120_tfd_nf_ts121'
+    pretrained = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_1000_tfs60_tfd_nf_ts121'
 
     model_name = tuning2
     model_save_path = f'CoreLSTM/models/{model_name}.pt'

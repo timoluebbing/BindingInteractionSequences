@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
-sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -56,7 +56,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 3000
+    epochs = 10
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -64,10 +64,10 @@ def main(train=True, validate=True, test=True, render=True):
     lr = 0.0005
     weight_decay = 0.01 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = 120
+    teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
     
-    hidden_num = 360
+    hidden_num = 64
     layer_norm = False
 
     n_dim = 4 if no_forces else 6
@@ -84,8 +84,11 @@ def main(train=True, validate=True, test=True, render=True):
     model_name += f'_ts{timesteps}'
     
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-        
-
+    
+    # load pretrained model for further training    
+    tuning0 = 'core_lstm_4_3_5_360_0.001_0.0_HuberLoss()_240_1500_tfs120_tfd'
+    pretrained_path = f'CoreLSTM/models/tuning/{tuning0}.pt'
+    
     if train:
         
         trainer = LSTM_Trainer(
@@ -102,7 +105,8 @@ def main(train=True, validate=True, test=True, render=True):
             num_feat=n_features,
             num_independent_feat=n_independent,
             num_interactions=n_interactions,
-            num_output=n_out
+            num_output=n_out,
+            # pretrained_path=pretrained_path,
         )
         
         train_losses, val_losses = trainer.train_and_validate(
@@ -127,6 +131,8 @@ def main(train=True, validate=True, test=True, render=True):
             hidden_num=hidden_num,
             layer_norm=layer_norm,
             timesteps=timesteps,
+            teacher_forcing_steps=teacher_forcing_steps,
+            teacher_forcing_dropouts=teacher_forcing_dropouts,
             num_dim=n_dim,
             num_feat=n_features,
             num_independent_feat=n_independent,
