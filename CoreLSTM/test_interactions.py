@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
+sys.path.append(pc_dir)      
 sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
@@ -25,7 +26,7 @@ def main(render=True):
     interaction_paths = dict(zip(interactions_num, paths))
     
     ##### Dataset and DataLoader #####
-    batch_size = 240
+    batch_size = 280
     timesteps = 121
     seed = 2023
     no_forces = True
@@ -40,7 +41,7 @@ def main(render=True):
         use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
     split = [0.7, 0.15, 0.15]
-    split = [0.6, 0.3, 0.1]
+    # split = [0.6, 0.3, 0.1]
     
     
     train_dataset, _, test_dataset = random_split(dataset, split, generator)
@@ -50,7 +51,7 @@ def main(render=True):
     print(f"Number of test samples:      {len(test_dataset)} \n")
     
     ##### Model parameters #####
-    hidden_num = 360
+    hidden_num = 256
     layer_norm = False
     
     n_dim = 4 if no_forces else 6
@@ -58,7 +59,7 @@ def main(render=True):
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
     
-    teacher_forcing_steps = 80
+    teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
     
     current_best = 'core_lstm_6_3_5_360_MSELoss()_0.0001_0_180_2000_lnorm_tfs200'
@@ -75,10 +76,18 @@ def main(render=True):
     tuning_train = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_3000_tfs120_tfd_nf_ts121'
     pretrained = 'core_lstm_4_3_5_360_HuberLoss()_0.0005_0.01_240_1000_tfs60_tfd_nf_ts121'
 
-    model_name = tuning2
+    resnet120 = 'core_res_lstm_4_3_5_128_HuberLoss()_0.001_0.0_360_1500_tfs120_tfd_nf_ts121'
+    resnet80 = 'core_res_lstm_4_3_5_128_HuberLoss()_0.001_0.0_360_1500_tfs80_tfd_nf_ts121'
+    resnet80_best = 'core_res_lstm_4_3_5_360_HuberLoss()_0.001_0.0_280_2000_tfs80_tfd_nf_ts121'
+    resnet80_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs80_tfd'
+    resnet60_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs60_tfd'
+
+    model_name = resnet60_best_tuning
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
+    random_labels = True
+
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
     criterion = huber_loss
@@ -96,7 +105,8 @@ def main(render=True):
         num_independent_feat=n_independent,
         num_interactions=n_interactions,
         num_output=n_out,
-        model_save_path=model_save_path
+        model_save_path=model_save_path,
+        random_labels = random_labels,
     )
 
     print("\nTest dataset:\n")

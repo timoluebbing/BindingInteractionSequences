@@ -6,6 +6,7 @@ import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
 sys.path.append(pc_dir)      
+sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
 from CoreLSTM.train_core_lstm import LSTM_Trainer
@@ -25,7 +26,7 @@ def main(validate=True):
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    batch_size = 360
+    batch_size = 280
     timesteps=121
     no_forces = True
     no_forces_out = False
@@ -73,14 +74,19 @@ def main(validate=True):
     teacher_forcing_dropouts = True
 
     params = {
-        'hidden': [360, 520], # 360
+        'hidden': [64, 128, 256], # 360
         'lnorm': [False], # False
         'lr': [0.001, 0.0001],
-        'wd': [0.01, 0.05],
+        'wd': [0.0],
         'loss': [huber_loss], #l1_loss
-        'tf_steps': [80],
+        'tf_steps': [60, 80],
     }
-    
+
+    # load pretrained model for further training    
+    resnet120 = 'core_res_lstm_4_3_5_128_HuberLoss()_0.001_0.0_360_1500_tfs120_tfd_nf_ts121'
+    pretrained_path = f'CoreLSTM/models/{resnet120}.pt'
+
+    # Save path for trained models during tuning
     model_save_path = 'CoreLSTM/models/tuning/'
 
     trainer = LSTM_Trainer(
@@ -97,7 +103,8 @@ def main(validate=True):
         num_feat=n_features,
         num_independent_feat=n_independent,
         num_interactions=n_interactions,
-        num_output=n_out
+        num_output=n_out,
+        # pretrained_path=pretrained_path,
     )
     
     (train_losses, val_losses, 
@@ -108,14 +115,14 @@ def main(validate=True):
         train_dataloader, 
         validate,
         val_dataloader,
-        display_best_n_combinations=5
+        display_best_n_combinations=10
     )
     
     best_train_losses = train_losses[best_idx[0]]
     best_val_losses = val_losses[best_idx[0]]
 
-    train_loss_path = "CoreLSTM/testing_predictions/tuning/best2_train"
-    val_loss_path   = "CoreLSTM/testing_predictions/tuning/best2_val"
+    train_loss_path = f"CoreLSTM/testing_predictions/tuning/train_{'_'.join(str(p) for p in min_params[0])}"
+    val_loss_path   = f"CoreLSTM/testing_predictions/tuning/val_{'_'.join(str(p) for p in min_params[0])}"
     trainer.plot_losses(best_train_losses, train_loss_path, show=False)
     trainer.plot_losses(best_val_losses,   val_loss_path, show=False)        
 

@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, random_split
 import sys
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
+sys.path.append(pc_dir)      
 sys.path.append(laptop_dir)      
 # Before run: replace ... with current directory path
 
@@ -28,7 +29,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     ##### Dataset and DataLoader #####
     seed = 2023
-    batch_size = 240
+    batch_size = 270 # * 3 = 840 = train_size
     timesteps=121
     no_forces = True
     no_forces_out = False
@@ -56,18 +57,18 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 10
+    epochs = 2000
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
     criterion = huber_loss
-    lr = 0.0005
-    weight_decay = 0.01 # 0.01
+    lr = 0.001
+    weight_decay = 0.0 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = 60
+    teacher_forcing_steps = 80
     teacher_forcing_dropouts = True
     
-    hidden_num = 64
+    hidden_num = 360
     layer_norm = False
 
     n_dim = 4 if no_forces else 6
@@ -75,7 +76,7 @@ def main(train=True, validate=True, test=True, render=True):
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
     
-    model_name = f"core_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
+    model_name = f"core_res_lstm_{n_dim}_{n_features}_{n_independent}_{hidden_num}_{criterion}_{lr}_{weight_decay}_{batch_size}_{epochs}"
     model_name += '_lnorm' if layer_norm else ''
     model_name += f'_tfs{teacher_forcing_steps}'
     model_name += '_tfd' if teacher_forcing_dropouts else ''
@@ -86,8 +87,8 @@ def main(train=True, validate=True, test=True, render=True):
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     
     # load pretrained model for further training    
-    tuning0 = 'core_lstm_4_3_5_360_0.001_0.0_HuberLoss()_240_1500_tfs120_tfd'
-    pretrained_path = f'CoreLSTM/models/tuning/{tuning0}.pt'
+    resnet120 = 'core_res_lstm_4_3_5_128_HuberLoss()_0.001_0.0_360_1500_tfs120_tfd_nf_ts121'
+    pretrained_path = f'CoreLSTM/models/{resnet120}.pt'
     
     if train:
         
@@ -138,9 +139,7 @@ def main(train=True, validate=True, test=True, render=True):
             num_independent_feat=n_independent,
             num_interactions=n_interactions,
             num_output=n_out,
-            model_save_path=model_save_path, 
-            # model_save_path=model_path, 
-            # model_save_path=current_best,  
+            model_save_path=model_save_path,   
         )
         
         print("Test dataset: \n")

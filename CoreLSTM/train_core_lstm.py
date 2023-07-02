@@ -60,6 +60,7 @@ class LSTM_Trainer():
 
         self.model = CORE_NET(
             input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
+            batch_size=batch_size,
             hidden_layer_size=hidden_num, 
             output_size=num_output,
             layer_norm=layer_norm
@@ -75,9 +76,9 @@ class LSTM_Trainer():
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
         self.dropout_chance = 0.0
+        # random.seed(0)
         self.random_thresholds = random.random_sample((teacher_forcing_steps,))
         
-                
         self.optimizer = AdamW(
             params=self.model.parameters(),
             lr=learning_rate,
@@ -122,10 +123,12 @@ class LSTM_Trainer():
     def reset_model(self):
         self.model = CORE_NET(
             input_size=self.num_dim*self.num_feat+self.num_independent_feat+self.num_interactions, 
+            batch_size=self.batch_size,
             hidden_layer_size=self.hidden_num, 
             output_size=self.num_output,
             layer_norm=self.layer_norm
         )
+
 
     def reset_optimizer(self):
         self.optimizer = AdamW(
@@ -154,7 +157,7 @@ class LSTM_Trainer():
 
 
     def set_tuning_model_name(self, epochs):
-        model_name = f"core_lstm_{self.num_dim}_{self.num_feat}_{self.num_independent_feat}_{self.hidden_num}"
+        model_name = f"core_res_lstm_{self.num_dim}_{self.num_feat}_{self.num_independent_feat}_{self.hidden_num}"
         model_name += '_lnorm' if self.layer_norm else ''
         model_name += f"_{self.learning_rate}_{self.weight_decay}_{self.loss_function}_{self.batch_size}_{epochs}"
         model_name += f'_tfs{self.teacher_forcing_steps}'
@@ -228,7 +231,7 @@ class LSTM_Trainer():
 
         for epoch in range(epochs):
 
-            ep_trn_loss = self.train_single_epoch(epoch, train_dataloader)
+            ep_trn_loss = self.train_epoch(epoch, train_dataloader)
             train_losses.append(ep_trn_loss)
             
             if validate and epoch >= epochs-n_last_epochs:
@@ -245,9 +248,9 @@ class LSTM_Trainer():
 
         return train_losses, val_losses
     
-    def train_single_epoch(self, epoch, dataloader):
+    def train_epoch(self, epoch, dataloader):
         
-        single_losses = torch.tensor([0.0], device=self.device)
+        losses = torch.tensor([0.0], device=self.device)
 
         self.model.zero_grad()
         self.optimizer.zero_grad()
@@ -256,40 +259,41 @@ class LSTM_Trainer():
             
             seq, label, interaction = self.model.restructure_data(seq, label, interaction)
             
-            _, single_losses = self.train_single_sequence(
+            outs = self.predict_sequence(
                 seq, 
-                label, 
                 interaction, 
-                single_losses)
+            )
 
+            loss = self.loss_function(outs, label)
+            loss.backward()
             self.optimizer.step()
-            # self.lr_scheduler.step()
+
+            with torch.no_grad():
+                losses += loss
         
         with torch.no_grad():
-            ep_loss = single_losses.clone().item()
-            if epoch % 20 == 0:
-                avg_loss = ep_loss / 1200 # (len(dataloader) * self.batch_size)
+
+            ep_loss = losses.clone().item()
+            if epoch % 20  == 0:
+                avg_loss = ep_loss /  (len(dataloader) * self.batch_size)
                 print(f'Epoch: {epoch:4} - Avg. Loss: {avg_loss:10.8f} - Epoch Loss: {ep_loss:8.4f} - LR: {self.get_lr(self.optimizer):.6f}')
 
         return ep_loss
     
 
-    def train_single_sequence(self, 
-                              seq, 
-                              label, 
-                              interaction, 
-                              single_losses
-        ):
-        """Method to train a single interaction sequence. Wether training is open or 
+    def predict_sequence(
+        self, 
+        seq, 
+        interaction
+    ):
+        """Method to pridict a single interaction sequence. Wether training is open or 
            closed loop is determined by the number of teacher forcing steps and a 
            teacher forcing dropout probability (currently increasing linearly with every 
            timestep as long as teacher forcing is enabled)
 
         Args:
             seq (torch.Tensor): Input sequences
-            label (torch.Tensor): Output sequences (label)
             interaction (torch.Tensor): Interaction labels
-            single_losses (torch.Tensor): cumulated losses from previous batches
 
         Returns:
             (torch.Tensor, torch.Tensor): Returns the output for the given sequence and 
@@ -302,37 +306,36 @@ class LSTM_Trainer():
         self.reset_dropout_chance()
 
         for j in range(seq_len):
-            
-            if self.teacher_forcing_dropouts and j < self.teacher_forcing_steps:
-                not_a_dropout = self.random_thresholds[j] > self.dropout_chance
-                self.dropout_chance += 1 / self.teacher_forcing_steps
-
-            if (
-                j < self.teacher_forcing_steps           # -> Ignore dropout functionality
-                    and not self.teacher_forcing_dropouts  
-                or j < self.teacher_forcing_steps        # -> Use tf until tf_steps is reached
-                    and not_a_dropout                    # and the current time step is not a dropout
-            ):
-                _input = seq[j, :, :]
-                output, state = self.model.forward(_input, interaction, state)
-            else:
-                # concat motor forces and distances to previous output
-                output = self.closed_loop_input(seq, j, output)
-                # Closed loop lstm forward pass without teacherforcing
-                output, state = self.model.forward(output, interaction, state)
-                        
-            outs.append(output)
+            _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
 
         outs = torch.stack(outs)
 
-        single_loss = self.loss_function(outs, label)
-        single_loss.backward()
-        # self.optimizer.step()
+        return outs
 
-        with torch.no_grad():
-            single_losses += single_loss
 
-        return outs, single_losses 
+    def forward_pass(self, seq, interaction, state, outs, j):
+            
+        if self.teacher_forcing_dropouts and j < self.teacher_forcing_steps:
+            not_a_dropout = self.random_thresholds[j] > self.dropout_chance
+            self.dropout_chance += 1 / self.teacher_forcing_steps
+
+        if (
+            j < self.teacher_forcing_steps           # -> Ignore dropout functionality
+                and not self.teacher_forcing_dropouts  
+            or j < self.teacher_forcing_steps        # -> Use tf until tf_steps is reached
+                and not_a_dropout                    # and the current time step is not a dropout
+        ):
+            _input = seq[j, :, :]
+            output, state = self.model.forward(_input, interaction, state)
+        else:
+            # concat motor forces and distances to previous output
+            output = self.closed_loop_input(seq, j, outs[-1])
+            # Closed loop lstm forward pass without teacherforcing
+            output, state = self.model.forward(output, interaction, state)
+                    
+        outs.append(output)
+        
+        return output, state, outs
 
     
     def reset_dropout_chance(self):
@@ -369,10 +372,12 @@ class LSTM_Trainer():
 
     def validate(self, dataloader, epoch):
         
-        loss = torch.tensor([0.0], device=self.device)
         self.model.eval()
         
         with torch.no_grad():
+
+            loss = torch.tensor([0.0], device=self.device)
+            
             for seq, label, interaction in dataloader:
                     
                 seq, label, interaction = self.model.restructure_data(seq, label, interaction)
@@ -381,11 +386,10 @@ class LSTM_Trainer():
         
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
+                self.reset_dropout_chance()
                 
                 for j in range(seq_len):
-                    _input = seq[j, :, :]
-                    out, state = self.model.forward(input_seq=_input, interaction_label=interaction, state=state)
-                    outs.append(out)
+                    _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
                     
                 outs = torch.stack(outs)
                 
@@ -393,7 +397,7 @@ class LSTM_Trainer():
                 loss += single_loss
                 
             ep_loss = loss.clone().item()
-            if epoch % 20 == 0:
+            if epoch % 5 == 0:
                 avg_loss = ep_loss / (len(dataloader) * self.batch_size)
                 print(f'Validate:     Avg. loss: {avg_loss:10.8f} - Total loss: {ep_loss:8.4f}')
                 

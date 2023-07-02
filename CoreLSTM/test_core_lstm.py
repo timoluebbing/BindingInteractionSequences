@@ -41,7 +41,8 @@ class LSTM_Tester():
         num_independent_feat,
         num_interactions,
         num_output,
-        model_save_path
+        model_save_path,
+        random_labels=False,
     ):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -57,6 +58,7 @@ class LSTM_Tester():
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
         self.dropout_chance = 0.0
+        random.seed(0)
         self.random_thresholds = random.random_sample((self.teacher_forcing_steps,))
         
         self.num_obj = num_feat
@@ -66,14 +68,17 @@ class LSTM_Tester():
         self.batch_size = batch_size
         self.loss_function = loss_function
         self.model_save_path = model_save_path
+        self.random_labels = random_labels
         
         self.input_size = num_dim*num_feat
 
         self.model = CORE_NET(
             input_size=self.input_size+num_independent_feat+num_interactions, 
+            batch_size=batch_size,
             hidden_layer_size=hidden_num, 
             output_size=num_output,
-            layer_norm=layer_norm
+            layer_norm=layer_norm,
+            random_labels=self.random_labels,
         )
 
         self.load_model()

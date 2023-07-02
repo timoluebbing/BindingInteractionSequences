@@ -59,11 +59,10 @@
   - [x] auf pretrained model ohne dropouts, dann aber ganz 'viele'
 - [ ] reslayer output output + input
 - [ ] interaction module
+- [ ] init event codes raus weil kein sinn
 - [ ] nach latex template fragen
+- [ ] BA Aufbau besprechen
 
-Notizen: 
-- Hyperparameter tuning: huber loss besser als mse, lnorm raus
-- modelle mit viel teacher forcing lernen nur anhand der jeweiligen letzten Zeitschritte und der interaction code bleibt unberücksichtigt -> kein Unterschied des losses zu random interaction labels. 
 
 ### Retrospective Inference:
 - Statt den event onehot labels wie [0, 1, 0, 0] wird jetzt immer für jede Sequenz [1/4 ...] genommen als input zur event code layer.

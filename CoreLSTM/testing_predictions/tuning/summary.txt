@@ -38,3 +38,31 @@ Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
 0.0015953209950  | [360, False, 0.0005, 0.0, HuberLoss(), 80]
 0.0015980375465  | [360, False, 0.001, 0.05, HuberLoss(), 80]
 0.0018080337904  | [120, False, 0.0005, 0.05, HuberLoss(), 80]
+
+Resnet:
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0111674573272  | [128, False, 0.001, 0.0, HuberLoss(), 80]
+0.0132062761113  | [64, False, 0.001, 0.0, HuberLoss(), 80]
+0.0156260821968  | [32, False, 0.001, 0.0, HuberLoss(), 80]
+0.0194038804621  | [128, False, 0.0001, 0.0, HuberLoss(), 80]
+0.0211029201746  | [64, False, 0.0001, 0.0, HuberLoss(), 80]
+
+Resnet:
+Validation loss: | Params: ['hidden', 'lnorm', 'lr', 'wd', 'loss', 'tf_steps']
+0.0097459396347  | [256, False, 0.001, 0.0, HuberLoss(), 80]
+0.0100289871916  | [256, False, 0.001, 0.01, HuberLoss(), 80]
+0.0105963544920  | [64, False, 0.001, 0.01, HuberLoss(), 80]
+0.0117080369964  | [64, False, 0.001, 0.0, HuberLoss(), 80]
+0.0131269460544  | [32, False, 0.001, 0.01, HuberLoss(), 80]
+
+Resnet 3000 epochs:
+0.0090039893985  | [256, False, 0.001, 0.0, HuberLoss(), 80]
+0.0098968362436  | [128, False, 0.001, 0.0, HuberLoss(), 80]
+0.0101896142587  | [64, False, 0.001, 0.0, HuberLoss(), 80]
+0.0132925547659  | [256, False, 0.0001, 0.0, HuberLoss(), 80]
+0.0155120417476  | [128, False, 0.0001, 0.0, HuberLoss(), 80]
+0.0166457053274  | [256, False, 0.001, 0.0, HuberLoss(), 60]
+0.0178342480212  | [128, False, 0.001, 0.0, HuberLoss(), 60]
+0.0185546707362  | [64, False, 0.001, 0.0, HuberLoss(), 60]
+0.0186693426222  | [64, False, 0.0001, 0.0, HuberLoss(), 80]
+0.0223989710212  | [256, False, 0.0001, 0.0, HuberLoss(), 60]
