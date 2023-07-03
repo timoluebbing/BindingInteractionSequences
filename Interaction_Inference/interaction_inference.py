@@ -117,7 +117,6 @@ class InteractionInference():
         seq_len, batch_size, _ = seq.size()
 
         state = self.model.init_hidden(batch_size=batch_size)
-        self.model.init_event_code(batch_size=batch_size)
         outs = []
         self.reset_dropout_chance()
 
@@ -191,7 +190,7 @@ class InteractionInference():
     
 
 
-    def infer_interactions(self, dataloader):
+    def infer_interactions(self, seq, label, interaction):
         """
         Optimize the current context.
 
@@ -219,46 +218,79 @@ class InteractionInference():
             possibly hidden and/or cell state.
 
         """
+        accuracies = []
+        losses = []
+        inference_losses = []
+        
+        seq, label, interaction = self.model.restructure_data(seq, label, interaction)
+
         for i in range(self.inference_steps):
-
-            losses = torch.tensor([0.0], device=self.device)
-            inference_losses = torch.tensor([0.0], device=self.device)
-
+            
             self.optimizer.zero_grad()
             # self.model.zero_grad() brauch ich nicht, da gradienten des models alle aus
-
-            for seq, label, interaction in dataloader:
-
-                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
-                                
-                # Predict interaction sequence
-                output, state, int_inference = self.predict(seq, interaction)
-                
-                # Compute loss 
-                loss = self.criterion(output, label)
-                
-                # Propagate loss back to interaction code
-                loss.backward()
-
-                # Update interaction code: model.event_code
-                self.optimizer.step()
-                
-                with torch.no_grad():
-                    # Check loss with regards to the correct one hot label
-                    int_one_hot = nn.functional.one_hot(interaction, num_classes=4)
-                    inference_loss = self.criterion(int_inference, int_one_hot)
-
-                    losses += loss
-                    inference_losses += inference_loss
-
-            with torch.no_grad():   
-                step_loss = losses.clone().item()
-                step_inf_loss = inference_losses.clone().item()     
-                if i % 10 == 0:
-                    print(f"Inference step {i}: Loss: {step_loss} - Int. Inference Loss: {step_inf_loss}")
+                                    
+            # Predict interaction sequence
+            output, state, int_inference = self.predict(seq, interaction)
             
-        return output, state, int_inference, interaction
+            # Compute loss 
+            loss = self.criterion(output, label)
+            
+            # Propagate loss back to interaction code
+            loss.backward()
 
+            # Update interaction code: model.event_code
+            self.optimizer.step()
+            
+            with torch.no_grad():
+                # Check loss with regards to the correct one hot label
+                int_one_hot = nn.functional.one_hot(interaction, num_classes=4)
+                inference_loss = self.criterion(int_inference, int_one_hot)
+                
+                inferece_pred = torch.argmax(int_inference, dim=1)
+                correct = sum(inferece_pred == interaction)
+                accuracy = correct / len(interaction)
+                accuracy_percent = 100. * accuracy
+                
+                losses.append(loss.clone().item())
+                inference_losses.append(inference_loss.clone().item())
+                accuracies.append(accuracy.clone().item())
+
+                step_loss = loss.clone().item()
+                step_inf_loss = inference_loss.clone().item()     
+                if i % 5 == 0:
+                    print(f"Inference step {i:3}: Loss: {step_loss:.6f} - Int. Inference Loss: {step_inf_loss:.6f} - Acc: {accuracy_percent:.3f}")
+            
+        return int_inference, interaction, losses, inference_losses, accuracies
+    
+    
+    def plot_losses(self, losses, plot_path, show=True):
+        fig = plt.figure()
+        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
+        axes.plot(losses[0], 'r')
+        axes.plot(losses[1], 'b')
+        axes.legend(['Network loss', 'Inference loss'])
+        axes.grid(True)
+        axes.set_xlabel('inference steps')
+        axes.set_ylabel('loss (log scaled)')
+        axes.set_yscale('log')
+        axes.set_title('History of Loss during interaction inference')
+        
+        plt.savefig(f'{plot_path}_losses.png')
+        if show:
+            plt.show()
+            
+    def plot_accuracy(self, acc, plot_path, show=True):
+        fig = plt.figure()
+        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
+        axes.plot(acc, 'r')
+        axes.grid(True)
+        axes.set_xlabel('inference steps')
+        axes.set_ylabel('Accuracy (%)')
+        axes.set_title('Accuracy during interaction inference')
+        
+        plt.savefig(f'{plot_path}_accuracy.png')
+        if show:
+            plt.show()
     
 def main():
     
@@ -273,7 +305,7 @@ def main():
     interaction_paths = dict(zip(interactions_num, paths))
     
     ##### Dataset and DataLoader #####
-    batch_size = 270
+    batch_size = 280
     timesteps = 121
     seed = 2023
     no_forces = True
@@ -303,9 +335,10 @@ def main():
     print(f"Number of valiation samples: {len(val_dataset)}")
     print(f"Number of test samples:      {len(test_dataset)} \n")
     
+    seq, label, interaction = next(iter(train_dataloader))
     
     ##### Model parameters #####
-    hidden_num = 360
+    hidden_num = 256
     embedding_num = 16
     layer_norm = False
     
@@ -313,21 +346,26 @@ def main():
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
-    teacher_forcing_steps = 80
+    
+    teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
 
-    inference_steps = 100
+    inference_steps = 500
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
-    criterion = huber_loss
+    criterion = mse_loss
     
     # Load pretrained model
     resnet80 = 'core_res_lstm_4_3_5_128_HuberLoss()_0.001_0.0_360_1500_tfs80_tfd_nf_ts121'
     resnet80_best = 'core_res_lstm_4_3_5_360_HuberLoss()_0.001_0.0_280_2000_tfs80_tfd_nf_ts121'
+    
+    resnet80_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs80_tfd'
+    resnet60_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs60_tfd'
 
-    model_name = resnet80_best
+    model_name = resnet60_best_tuning
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
+    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
     model = CORE_NET(
         input_size=n_dim*n_features+n_independent+n_interactions, 
@@ -345,7 +383,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.01,
+        lr=0.005,
     )
 
     inference = InteractionInference(
@@ -360,83 +398,41 @@ def main():
         teacher_forcing_dropouts=teacher_forcing_dropouts,
     )
     
-    for name, param in inference.model.named_parameters():
-        if param.requires_grad:
-            print(name, param.data)
-    
     print(f"model.event_code.requires_grad = {model.event_code.requires_grad}")
 
-    output, state, int_inference, interaction = inference.infer_interactions(
-        dataloader=train_dataloader
+    int_inference, interaction, losses, inference_losses, accuracies = inference.infer_interactions(
+        # dataloader=train_dataloader
+        seq=seq,
+        label=label,
+        interaction=interaction,
     )
-
-    print(int_inference)
-    print(interaction)
     
+    with torch.no_grad():
+        print(int_inference[:5])
+        print(interaction[:5])
+        
+        inferece_pred = torch.argmax(int_inference, dim=1)
+        correct = sum(inferece_pred == interaction)
+        accuracy = correct / len(interaction)
+        accuracy_percent = 100. * accuracy
+        
+        print("\nFinal inference results: \n")
+        print(f"Correct / Total = {correct} / {len(interaction)} = {accuracy:.4f}")
+        print(f"Inference accuracy: {accuracy_percent:.4f} %")
+        print(f"Inference accuracy: {accuracies[-1]:.4f}")
+        
+        plot_path   = f"CoreLSTM/testing_predictions/inference/{model_name}"
+        
+        inference.plot_accuracy(accuracies, plot_path)
+        inference.plot_losses([losses, inference_losses], plot_path)
+        
+        
     
-
-
+        
+        
+        
+        
+        
+    
 if __name__ == "__main__":
     main()
-    
-    
-    
-            
-            
- 
-    # def predict(self, state):
-    #     outputs = []
-    #     states = []
-    #     # Forward pass over inference_length steps
-    #     for ci_t in range(len(self._model_inputs)):
-    #         in_t = self._model_inputs[ci_t]
-    #         in_t_c = torch.cat((self._context, in_t), dim=2)
-    #         output, state = self._model.forward(in_t_c, state)
-    #         outputs.append(output)
-    #         states.append(state)
-    #     return outputs, states
-        
-    # def infer_contexts(self, model_input, observation):
-
-    #     # assert (len(model_input.shape) ==
-    #     #         3), "model_input should be of shape (seq_len, batch, input_size)"
-    #     # assert (model_input.size(0) == 1), "seq_len of model_input should be 1"
-    #     # assert (len(observation.shape) ==
-    #     #         3), "observation should be of shape (seq_len, batch, input_size)"
-    #     # assert (observation.size(0) == 1), "seq_len of observation should be 1"
-
-    #     if self._reset_optimizer:
-    #         self._optimizer.load_state_dict(self._optimizer_orig_state)
-
-    #     # # Shift inputs and observations by one
-    #     # self._model_inputs.append(model_input)
-    #     # self._model_inputs = self._model_inputs[-self._inference_length:]
-    #     # self._observations.append(observation)
-    #     # self._observations = self._observations[-self._inference_length:]
-
-    #     # Perform context inference cycles
-    #     for _ in range(self._inference_cycles):
-    #         self._optimizer.zero_grad()
-
-    #         outputs, states = self.predict(self._model_state)
-
-    #         # Compute loss
-    #         loss = self._criterion(outputs, self._observations)
-
-    #         # Backward pass
-    #         loss.backward()
-    #         self._optimizer.step()
-
-    #         # Operations on the data are not tracked
-    #         self._context.data = self._context_handler(self._context.data)
-
-    #     # Context and state have been optimized; this optimized context/state
-    #     # is now propagated once more in forward direction in order to generate
-    #     # the final output and state to be returned
-    #     with torch.no_grad():
-    #         outputs, states = self.predict(self._model_state)
-    #         for i in range(len(self._model_state)):
-    #             for j in range(len(self._model_state[i])):
-    #                 self._model_state[i][j].data = states[0][i][j].data
-
-    #     return self._context, outputs, states

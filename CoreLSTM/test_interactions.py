@@ -86,7 +86,7 @@ def main(render=True):
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
-    random_labels = True
+    random_labels = False
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
