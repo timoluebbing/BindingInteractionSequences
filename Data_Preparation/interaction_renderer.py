@@ -79,17 +79,30 @@ class Interaction_Renderer():
         row_in = self.tensor_input[frame, :].tolist()
         row_out = self.tensor_output[frame, :].tolist()
         
-        xs_in, xs_out = row_in[::self.n_dim_in], row_out[::self.n_dim_out]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
-        xs_in = [x * self.width for x in xs_in]
-        xs_out = [x * self.width for x in xs_out]
-        
-        ys_in, ys_out = row_in[1::self.n_dim_in], row_out[1::self.n_dim_out]
-        ys_in = [y * self.height for y in ys_in]
-        ys_out = [y * self.height for y in ys_out]
-        
-        sin_in, sin_out = row_in[2::self.n_dim_in], row_out[2::self.n_dim_out]
-        cos_in, cos_out = row_in[3::self.n_dim_in], row_out[3::self.n_dim_out]
-        return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
+        if self.n_dim_in == 2 and self.n_dim_out == 2:
+            xs_in, xs_out = row_in[::self.n_dim_in], row_out[::self.n_dim_out]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
+            xs_in = [x * self.width for x in xs_in]
+            xs_out = [x * self.width for x in xs_out]
+            
+            ys_in, ys_out = row_in[1::self.n_dim_in], row_out[1::self.n_dim_out]
+            ys_in = [y * self.height for y in ys_in]
+            ys_out = [y * self.height for y in ys_out]
+            
+            return xs_in, ys_in, xs_out, ys_out
+            
+        else:
+            xs_in, xs_out = row_in[::self.n_dim_in], row_out[::self.n_dim_out]                      # SEHR ÜBLE magic numbers :) (abhängig von csv-format)
+            xs_in = [x * self.width for x in xs_in]
+            xs_out = [x * self.width for x in xs_out]
+            
+            ys_in, ys_out = row_in[1::self.n_dim_in], row_out[1::self.n_dim_out]
+            ys_in = [y * self.height for y in ys_in]
+            ys_out = [y * self.height for y in ys_out]
+            
+            sin_in, sin_out = row_in[2::self.n_dim_in], row_out[2::self.n_dim_out]
+            cos_in, cos_out = row_in[3::self.n_dim_in], row_out[3::self.n_dim_out]
+            
+            return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
     
     
     def draw_text(self):
@@ -110,18 +123,23 @@ class Interaction_Renderer():
         frame_mod =  frame % self.max_frames_out
         radius_in = 8
         radius_out = 10
-        
-        xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out = self.load_positions_at_frame_tensor(frame_mod)
-        for x_in, y_in, s_in, c_in, x_out, y_out, s_out, c_out in zip(xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out):
-            pygame.draw.circle(self.screen, self.black, (x_in, y_in), radius_in)
-            pygame.draw.circle(self.screen, self.green, (x_out, y_out), radius_out)
-            line_x_in = x_in + c_in * radius_in
-            line_y_in = y_in + s_in * radius_in
-            pygame.draw.line(self.screen, self.red, (x_in, y_in), (line_x_in, line_y_in), 2)
-            line_x_out = x_out + c_out * radius_out
-            line_y_out = y_out + s_out * radius_out
-            pygame.draw.line(self.screen, self.blue, (x_out, y_out), (line_x_out, line_y_out), 2)
-           
+        if self.n_dim_in == 2 and self.n_dim_out == 2:
+            xs_in, ys_in, xs_out, ys_out = self.load_positions_at_frame_tensor(frame_mod)
+            for x_in, y_in, x_out, y_out in zip(xs_in, ys_in, xs_out, ys_out):
+                pygame.draw.circle(self.screen, self.black, (x_in, y_in), radius_in)
+                pygame.draw.circle(self.screen, self.green, (x_out, y_out), radius_out)
+        else:
+            xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out = self.load_positions_at_frame_tensor(frame_mod)
+            for x_in, y_in, s_in, c_in, x_out, y_out, s_out, c_out in zip(xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out):
+                pygame.draw.circle(self.screen, self.black, (x_in, y_in), radius_in)
+                pygame.draw.circle(self.screen, self.green, (x_out, y_out), radius_out)
+                line_x_in = x_in + c_in * radius_in
+                line_y_in = y_in + s_in * radius_in
+                pygame.draw.line(self.screen, self.red, (x_in, y_in), (line_x_in, line_y_in), 2)
+                line_x_out = x_out + c_out * radius_out
+                line_y_out = y_out + s_out * radius_out
+                pygame.draw.line(self.screen, self.blue, (x_out, y_out), (line_x_out, line_y_out), 2)
+            
            
     def render(self, loops=1):
         

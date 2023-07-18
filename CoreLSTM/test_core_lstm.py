@@ -53,6 +53,10 @@ class LSTM_Tester():
         elif num_output == 18:
             self.num_dim = num_dim
             self.num_feature_types = self.num_dim // 2
+            
+        elif num_output == 6:
+            self.num_dim = num_dim
+            self.num_feature_types = self.num_dim // 2
         
         self.timesteps = timesteps - 1 # input und label um einen step versetzt
         self.teacher_forcing_steps = teacher_forcing_steps
@@ -138,10 +142,17 @@ class LSTM_Tester():
         # shape out: [seq_len=1, batch_size, features]
         t = out.squeeze()
         # a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
-        a1, a2, b = (
-            t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
-            for i in range(self.num_obj)
-        )
+        if self.num_dim == 4:
+            a1, a2, b = (
+                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+                for i in range(self.num_obj)
+            )
+            
+        elif self.num_dim == 2:
+            a1, a2, b = (
+                t[:, 2*i : 2*(i+1)]
+                for i in range(self.num_obj)
+            )
         
         # abstrahieren für n_obj!=3 mit [a1, a2, b, ...] als list und:
         # combs = it.combinations(tensors, 2)

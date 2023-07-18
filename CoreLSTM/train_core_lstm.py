@@ -353,10 +353,17 @@ class LSTM_Trainer():
         # shape out: [seq_len=1, batch_size, features]
         t = out.squeeze()
         # a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
-        a1, a2, b = (
-            t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
-            for i in range(self.num_feat)
-        )
+        if self.num_dim == 4:
+            a1, a2, b = (
+                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+                for i in range(self.num_feat)
+            )
+            
+        elif self.num_dim == 2:
+            a1, a2, b = (
+                t[:, 2*i : 2*(i+1)]
+                for i in range(self.num_feat)
+            )
         
         # abstrahieren für n_obj!=3 mit [a1, a2, b, ...] als list und:
         # combs = it.combinations(tensors, 2)

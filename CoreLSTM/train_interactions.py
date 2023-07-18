@@ -30,15 +30,18 @@ def main(train=True, validate=True, test=True, render=True):
     ##### Dataset and DataLoader #####
     seed = 2023
     batch_size = 270 # * 3 = 840 = train_size
-    timesteps=121
-    no_forces = True
+    timesteps = 121
+    no_forces = False
+    no_forces_no_orientation = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
+    n_out = 6 if no_forces_no_orientation else n_out
 
     dataset = TimeSeriesDataset(
         interaction_paths, 
         timesteps=timesteps,
         no_forces=no_forces,
+        no_forces_no_orientation=no_forces_no_orientation,
         n_out=n_out,
         use_distances_and_motor=True
     )
@@ -57,7 +60,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 2000
+    epochs = 20
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -72,6 +75,7 @@ def main(train=True, validate=True, test=True, render=True):
     layer_norm = False
 
     n_dim = 4 if no_forces else 6
+    n_dim = 2 if no_forces_no_orientation else n_dim
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
@@ -81,6 +85,7 @@ def main(train=True, validate=True, test=True, render=True):
     model_name += f'_tfs{teacher_forcing_steps}'
     model_name += '_tfd' if teacher_forcing_dropouts else ''
     model_name += '_nf' if no_forces else ''
+    model_name += '_nfno' if no_forces_no_orientation else ''
     model_name += '_nfo' if no_forces_out else ''
     model_name += f'_ts{timesteps}'
     

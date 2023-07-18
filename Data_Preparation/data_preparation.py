@@ -210,12 +210,12 @@ class Preprocessor():
         return torch.Tensor(df.values)
         
         
-    def create_inout_sequence(self, input_data, no_forces, n_features):
+    def create_inout_sequence(self, input_data, no_forces, no_f_no_o, n_out):
         """ Creates input and label sequences for a single interaction sequence
 
         Args:
             input_data (torch.Tensor): Tensor of shape (sequence_length, features)
-            n_features (int)         : Number of output features
+            n_out (int)         : Number of output features
 
         Returns:
             tuple: Tuple of input and label sequence
@@ -225,10 +225,11 @@ class Preprocessor():
 
         # select first n features if no_forces=True (-> n_features=12) or standard amount of 18 features
         # With no_forces=T -> n_features=12 because forces were already droped in get_LSTM_data_interaction()
-        if no_forces or n_features == 18:
-            return seq, label[:,:n_features]
+        if no_forces or no_f_no_o or n_out == 18:
+            return seq, label[:,:n_out]
 
-        if n_features == 12:
+        # The following case is for no_forces_out but forces as input
+        if n_out == 12:
             # das sollte noch über self.num_dim und self.num_features abstrahiert werden
             ls = [
                 label[: , i*4 + i*2: (i+1)*4 + i*2]  
@@ -243,6 +244,7 @@ class Preprocessor():
         skip_first_n_steps=10,
         timesteps=200,
         no_forces=False, 
+        no_forces_no_orientation=False,
         use_distances_and_motor=False, 
         distances_and_motor_only=False
     ):
@@ -266,6 +268,18 @@ class Preprocessor():
             tensors = []
             for i in range(self.num_features):
                 t = tensor[: ,skip_first_n_steps : timesteps, i*4 + i*2: (i+1)*4 + i*2]
+                tensors.append(t)
+                
+            dis_motor = tensor[: ,skip_first_n_steps : timesteps, (self.num_dimensions * self.num_features) : ]
+            tensors.append(dis_motor)
+            
+            return torch.cat(tensors, dim=2)
+        
+        if no_forces_no_orientation and use_distances_and_motor:
+            
+            tensors = []
+            for i in range(self.num_features):
+                t = tensor[: ,skip_first_n_steps : timesteps, i*2 + i*4: (i+1)*2 + i*4]
                 tensors.append(t)
                 
             dis_motor = tensor[: ,skip_first_n_steps : timesteps, (self.num_dimensions * self.num_features) : ]

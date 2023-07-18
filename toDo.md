@@ -45,23 +45,29 @@
 - [x] test loss plotting for each time step
 - [x] test loss plotting for each time step by object
 - [x] test loss plotting for each time step by type (coords, orientation, force)
-### Neu
 - [x] Fix batch size impact on test loss...
 - [x] Fix sum of losses
-- [] Fix sum of losses type 
+- [x] Fix sum of losses type 
   - [x] Für dim=6 ist es gleich aber für dim=4 nicht mehr...
 - [x] no forces and no forces out
 - [x] Fix renderer for no forces out
 - [x] create in out seq auf dim=4 anpassen/ abstrahieren
 - [ ] closed loop für no forces out (forces wieder mit rein)
 - [x] dropout closed loop in test class!
+### Neu
 - [x] grid search hyperparameter tuning
   - [x] auf pretrained model ohne dropouts, dann aber ganz 'viele'
-- [ ] reslayer output output + input
-- [ ] interaction module
-- [ ] init event codes raus weil kein sinn
+- [x] reslayer output output + input
+- [x] interaction module
+- [x] init event codes raus weil kein sinn
+- [ ] lstm utils parent class
+- [ ] reset optim für jeden inference cycle?
+- [ ] besseres model trainieren 
 - [ ] nach latex template fragen
 - [ ] BA Aufbau besprechen
+- [ ] ohne orientierung
+
+Softmax auf interaction code * 10 angewendet
 
 
 ### Retrospective Inference:

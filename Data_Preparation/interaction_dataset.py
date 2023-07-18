@@ -16,6 +16,7 @@ class TimeSeriesDataset(Dataset):
         timesteps,
         n_out=18, 
         no_forces=False,
+        no_forces_no_orientation=False,
         use_distances_and_motor=True, 
         transform=None,
         num_samples=1200
@@ -38,6 +39,7 @@ class TimeSeriesDataset(Dataset):
         self.timesteps = timesteps
         self.n_out = n_out
         self.no_forces = no_forces
+        self.no_forces_no_orientation = no_forces_no_orientation
         self.use_distances_and_motor = use_distances_and_motor
         self.num_samples = num_samples
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -63,7 +65,8 @@ class TimeSeriesDataset(Dataset):
         sample = self.data[idx]
         sequence, label = self.prepro.create_inout_sequence(
             sample, 
-            self.no_forces, 
+            self.no_forces,
+            self.no_forces_no_orientation, 
             self.n_out)
         
         interaction = self.interactions[idx]
@@ -82,6 +85,7 @@ class TimeSeriesDataset(Dataset):
                     self.skip_first_n_steps,
                     self.timesteps,
                     self.no_forces,
+                    self.no_forces_no_orientation,
                     self.use_distances_and_motor)
                 print(interaction_data.shape, end='\n\n')
                 
@@ -107,8 +111,8 @@ def main():
     dataset = TimeSeriesDataset(
         interaction_paths,
         timesteps=200,
-        n_out=12,
-        no_forces=True,
+        n_out=6,
+        no_forces_no_orientation=True,
     )
     generator = torch.Generator().manual_seed(seed)
     
@@ -133,7 +137,8 @@ def main():
     print(f"Label shape:     {label.shape} {label.dtype}")
     print(f"Interaction:     {interaction} {interaction.dtype}")
     
-    print(label[0])
+    print(seq[:1])
+    print(label[:1])
     
 if __name__ == "__main__":
     main()
