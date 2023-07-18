@@ -60,7 +60,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 20
+    epochs = 1500
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -68,10 +68,10 @@ def main(train=True, validate=True, test=True, render=True):
     lr = 0.001
     weight_decay = 0.0 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = 80
+    teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
     
-    hidden_num = 360
+    hidden_num = 256
     layer_norm = False
 
     n_dim = 4 if no_forces else 6

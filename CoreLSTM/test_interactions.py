@@ -14,7 +14,7 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from CoreLSTM.test_core_lstm import LSTM_Tester
 
 
-def main(render=False):
+def main(render=True):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -29,14 +29,17 @@ def main(render=False):
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = True
+    no_forces = False
+    no_forces_no_orientation = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
+    n_out = 6 if no_forces_no_orientation else n_out
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
         timesteps=timesteps,
         no_forces=no_forces,
+        no_forces_no_orientation=no_forces_no_orientation,
         n_out=n_out,
         use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
@@ -55,6 +58,7 @@ def main(render=False):
     layer_norm = False
     
     n_dim = 4 if no_forces else 6
+    n_dim = 2 if no_forces_no_orientation else n_dim
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
@@ -82,11 +86,13 @@ def main(render=False):
     resnet80_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs80_tfd'
     resnet60_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs60_tfd'
 
-    model_name = resnet60_best_tuning
+    resnet60_no_orientation = 'core_res_lstm_2_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_nfno_ts121'
+
+    model_name = resnet60_no_orientation
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
+    # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
-    random_labels = False
+    random_labels = True
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()

@@ -130,10 +130,17 @@ class InteractionInference():
         # shape out: [seq_len=1, batch_size, features]
         t = out.squeeze()
         # a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
-        a1, a2, b = (
-            t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
-            for i in range(self.num_obj)
-        )
+        if self.num_dim == 4:
+            a1, a2, b = (
+                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+                for i in range(self.num_obj)
+            )
+            
+        elif self.num_dim == 2:
+            a1, a2, b = (
+                t[:, 2*i : 2*(i+1)]
+                for i in range(self.num_obj)
+            )
         
         # abstrahieren für n_obj!=3 mit [a1, a2, b, ...] als list und:
         # combs = it.combinations(tensors, 2)
@@ -264,7 +271,7 @@ class InteractionInference():
     
     def plot_losses(self, losses, plot_path, show=True):
         fig = plt.figure()
-        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
+        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
         axes.plot(losses[0], 'r')
         axes.plot(losses[1], 'b')
         axes.legend(['Network loss', 'Inference loss'])
@@ -272,22 +279,22 @@ class InteractionInference():
         axes.set_xlabel('inference steps')
         axes.set_ylabel('loss (log scaled)')
         axes.set_yscale('log')
-        axes.set_title('History of Loss during interaction inference')
+        axes.set_title('History of loss during interaction inference')
         
-        plt.savefig(f'{plot_path}_losses.png')
+        plt.savefig(f'{plot_path}_losses.png', dpi=300)
         if show:
             plt.show()
             
     def plot_accuracy(self, acc, plot_path, show=True):
         fig = plt.figure()
-        axes = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
+        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
         axes.plot(acc, 'r')
         axes.grid(True)
         axes.set_xlabel('inference steps')
         axes.set_ylabel('Accuracy (%)')
         axes.set_title('Accuracy during interaction inference')
         
-        plt.savefig(f'{plot_path}_accuracy.png')
+        plt.savefig(f'{plot_path}_accuracy.png', dpi=300)
         if show:
             plt.show()
     
@@ -307,14 +314,17 @@ def main():
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = True
+    no_forces = False
+    no_forces_no_orientation = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
+    n_out = 6 if no_forces_no_orientation else n_out
     
     dataset = TimeSeriesDataset(
         interaction_paths, 
         timesteps=timesteps,
         no_forces=no_forces,
+        no_forces_no_orientation=no_forces_no_orientation,
         n_out=n_out,
         use_distances_and_motor=True)
     print(f"Number of samples:      {len(dataset)} \n")
@@ -342,6 +352,7 @@ def main():
     layer_norm = False
     
     n_dim = 4 if no_forces else 6
+    n_dim = 2 if no_forces_no_orientation else n_dim
     n_features = 3
     n_independent = 5 # 2 motor + 3 distances 
     n_interactions = len(interactions)
@@ -362,9 +373,11 @@ def main():
     resnet80_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs80_tfd'
     resnet60_best_tuning = 'core_res_lstm_4_3_5_256_0.001_0.0_HuberLoss()_280_3000_tfs60_tfd'
 
-    model_name = resnet60_best_tuning
+    resnet60_no_orientation = 'core_res_lstm_2_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_nfno_ts121'
+
+    model_name = resnet60_no_orientation
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
+    # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
     model = CORE_NET(
         input_size=n_dim*n_features+n_independent+n_interactions, 
@@ -382,7 +395,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.05,
+        lr=0.02,
     )
 
     inference = InteractionInference(
