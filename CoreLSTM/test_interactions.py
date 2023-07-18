@@ -14,7 +14,7 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from CoreLSTM.test_core_lstm import LSTM_Tester
 
 
-def main(render=True):
+def main(render=False):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -121,12 +121,11 @@ def main(render=True):
     print(np.sum(obj_losses, axis=None))
     print(np.sum(type_losses, axis=None))
     
-    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
-    obj_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
-    type_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}_false_labels"
+    test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
+    test_loss_path += '_false_labels' if random_labels else '_true_labels'
     tester.plot_losses_steps(losses, test_loss_path)
-    tester.plot_losses_objects(obj_losses, obj_loss_path)
-    tester.plot_losses_types(type_losses, type_loss_path)
+    tester.plot_losses_objects(obj_losses, test_loss_path)
+    tester.plot_losses_types(type_losses, test_loss_path)
 
     if render:
         # Check prediction for one example with renderer

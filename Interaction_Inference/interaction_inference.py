@@ -1,6 +1,7 @@
 import torch
 import sys
 from torch import nn
+import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import random
@@ -28,23 +29,24 @@ class InteractionInference():
     ----------
     model : torch.nn.Module
         Recurrent neural network model which might be pretrained.
-    initial_model_states : torch.Tensor or tuple
-        Initial hidden (and cell) state of the model.
-    opt_accessor : function
-        Function that returns list of tensors to be optimized
     criterion : function
         Criterion for comparison of a list of past predictions and a list of
         observations.
     optimizer : torch.optim.Optimizer
         Optimizer to optimize the unfrozen layers during retrospective inference
+    inference_steps : int
+        Number of repeating steps to perform interaction inference
+    num_dim : int
+        Number of dimensions for each object
+    num_obj : int
+        Number of objects / features
+    teacher_forcing_steps : int
+        Number of timesteps where teacher forcing forward passes are performed
+    teacher_forcing_dropouts : bool
+        Flag indicating whether dropouts are present during teacher forcing forward passes
     reset_optimizer : bool
         If True the optimizer's statistics are reset before each inference.
         If False the optimizer's statistics are kept across inferences.
-    
-    # context_handler : function
-    #     Function that is applied to the context after each optimization,
-    #     e.g. can be used to keep context in certain range.
-
     """
 
     def __init__(
@@ -55,10 +57,9 @@ class InteractionInference():
             inference_steps,
             num_dim,
             num_obj,
-            timesteps,
             teacher_forcing_steps,
             teacher_forcing_dropouts,
-            reset_optimizer=True, 
+            reset_optimizer=False
         ):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model = model
@@ -73,7 +74,6 @@ class InteractionInference():
         self.num_dim = num_dim
         self.num_obj = num_obj
 
-        self.timesteps = timesteps - 1 # input und label um einen step versetzt
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
         self.dropout_chance = 0.0
@@ -85,52 +85,10 @@ class InteractionInference():
         #     s.requires_grad_()
         
         # params_to_train = ['event_codes.weight', 'event_codes.bias']
-        # for name, param in self.model.named_parameters():
-        #     # Set True only for params in the list 'params_to_train'
-        #     param.requires_grad = name in params_to_train
+        for name, param in self.model.named_parameters():
+            # Set True only for params in the list 'params_to_train'
+            param.requires_grad = False # name in params_to_train
 
-
-    def predict(self, seq, interaction):
-        """
-        Predict from the past.
-
-        Predict observations given past inputs as well as an initial hidden
-        state and a context.
-
-        Parameters
-        ----------
-        seq   : torch.Tensor
-            interaction sequence
-        interaction : torch.Tensor [1 x batchsize]
-            interaction label indicating event code
-        state : torch.Tensor or tuple
-            Initial hidden (and cell) state of the network.
-
-        Returns
-        -------
-        outputs : tensor
-            Entire predicted interaction sequence
-        states : tensor
-            Last hidden state of the network
-        """
-        
-        seq_len, batch_size, _ = seq.size()
-
-        state = self.model.init_hidden(batch_size=batch_size)
-        outs = []
-        self.reset_dropout_chance()
-
-        for j in range(seq_len):
-            _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
-                    
-        output = torch.stack(outs).to(self.device)
-        
-        # hier noch irgendwie output ausm softmax rauslesen
-        # und als predicted interaction_code_inference abspreichern und auch returnen
-        event_inference = self.model.event_code
-        
-        return output, state, event_inference
-    
 
     def forward_pass(self, seq, interaction, state, outs, j):
             
@@ -189,6 +147,47 @@ class InteractionInference():
         return torch.stack([dis_a1_a2, dis_a1_b, dis_b_a2], dim = 1) # shape (batchsize x 3)
     
 
+    def predict(self, seq, interaction):
+        """
+        Predict from the past.
+
+        Predict observations given past inputs as well as an initial hidden
+        state and a context.
+
+        Parameters
+        ----------
+        seq   : torch.Tensor
+            interaction sequence
+        interaction : torch.Tensor [1 x batchsize]
+            interaction label indicating event code
+        state : torch.Tensor or tuple
+            Initial hidden (and cell) state of the network.
+
+        Returns
+        -------
+        outputs : tensor
+            Entire predicted interaction sequence
+        states : tensor
+            Last hidden state of the network
+        """
+        
+        seq_len, batch_size, _ = seq.size()
+
+        state = self.model.init_hidden(batch_size=batch_size)
+        outs = []
+        self.reset_dropout_chance()
+
+        for j in range(seq_len):
+            _, state, outs = self.forward_pass(seq, interaction, state, outs, j)
+                    
+        output = torch.stack(outs).to(self.device)
+        
+        # hier noch irgendwie output ausm softmax rauslesen
+        # und als predicted interaction_code_inference abspreichern und auch returnen
+        event_inference = self.model.event_code
+        
+        return output, state, event_inference
+    
 
     def infer_interactions(self, seq, label, interaction):
         """
@@ -350,7 +349,7 @@ def main():
     teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
 
-    inference_steps = 500
+    inference_steps = 50
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -383,7 +382,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.005,
+        lr=0.05,
     )
 
     inference = InteractionInference(
@@ -393,7 +392,6 @@ def main():
         inference_steps=inference_steps,
         num_dim=n_dim,
         num_obj=n_features,
-        timesteps=timesteps,
         teacher_forcing_steps=teacher_forcing_steps,
         teacher_forcing_dropouts=teacher_forcing_dropouts,
     )
@@ -409,6 +407,7 @@ def main():
     
     with torch.no_grad():
         print(int_inference[:5])
+        print(torch.round(F.softmax(int_inference[:5] * 10, dim=1), decimals=2))
         print(interaction[:5])
         
         inferece_pred = torch.argmax(int_inference, dim=1)

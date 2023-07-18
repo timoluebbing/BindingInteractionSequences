@@ -328,7 +328,7 @@ class LSTM_Tester():
         # axes.set_yscale('log')
         axes.set_title('MSELoss for each test prediction time step')
         
-        plt.savefig(f'{plot_path}_losses.png')
+        plt.savefig(f'{plot_path}_losses.png', dpi=300)
         plt.show()
     
     
@@ -344,7 +344,7 @@ class LSTM_Tester():
         # axes.set_yscale('log')
         axes.set_title('MSELoss for each test prediction time step')
         
-        plt.savefig(f'{plot_path}_obj_losses.png')
+        plt.savefig(f'{plot_path}_obj_losses.png', dpi=300)
         plt.show()
     
         
@@ -360,6 +360,6 @@ class LSTM_Tester():
         # axes.set_yscale('log')
         axes.set_title('MSELoss for each test prediction time step')
         
-        plt.savefig(f'{plot_path}_type_losses.png')
+        plt.savefig(f'{plot_path}_type_losses.png', dpi=300)
         plt.show()
 
