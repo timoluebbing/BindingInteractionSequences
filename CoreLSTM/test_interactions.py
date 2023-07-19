@@ -14,7 +14,7 @@ from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from CoreLSTM.test_core_lstm import LSTM_Tester
 
 
-def main(render=True):
+def main(render=False):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -29,8 +29,8 @@ def main(render=True):
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = False
-    no_forces_no_orientation = True
+    no_forces = True
+    no_forces_no_orientation = False
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     n_out = 6 if no_forces_no_orientation else n_out
@@ -88,9 +88,9 @@ def main(render=True):
 
     resnet60_no_orientation = 'core_res_lstm_2_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_nfno_ts121'
 
-    model_name = resnet60_no_orientation
+    model_name = resnet60_best_tuning
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
+    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
     random_labels = True
 

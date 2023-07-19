@@ -4,10 +4,15 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
+import scienceplots
 from numpy import random
 from torch.optim import Adam, AdamW, SGD
 from torch.utils.data import DataLoader, random_split
 from torch.nn import PairwiseDistance
+
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+import pandas as pd
 
 pc_dir = "C:\\Users\\TimoLuebbing\\Desktop\\BindingInteractionSequences"
 laptop_dir = "C:\\Users\\timol\\Desktop\\BindingInteractionSequences"
@@ -17,6 +22,11 @@ sys.path.append(laptop_dir)
 
 from CoreLSTM.core_lstm import CORE_NET
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
+
+plt.style.use('science')
+
+CLASSES = ['A', 'B', 'C', 'D']
+CLASSES_INT = [0, 1, 2, 3]
 
 
 class InteractionInference():
@@ -224,6 +234,7 @@ class InteractionInference():
             possibly hidden and/or cell state.
 
         """
+        inferences = []
         accuracies = []
         losses = []
         inference_losses = []
@@ -260,43 +271,101 @@ class InteractionInference():
                 losses.append(loss.clone().item())
                 inference_losses.append(inference_loss.clone().item())
                 accuracies.append(accuracy.clone().item())
+                inferences.append(int_inference.clone())
 
                 step_loss = loss.clone().item()
                 step_inf_loss = inference_loss.clone().item()     
                 if i % 5 == 0:
                     print(f"Inference step {i:3}: Loss: {step_loss:.6f} - Int. Inference Loss: {step_inf_loss:.6f} - Acc: {accuracy_percent:.3f}")
             
-        return int_inference, interaction, losses, inference_losses, accuracies
+        return inferences, interaction, losses, inference_losses, accuracies
     
     
     def plot_losses(self, losses, plot_path, show=True):
-        fig = plt.figure()
-        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
-        axes.plot(losses[0], 'r')
-        axes.plot(losses[1], 'b')
+        fig, axes = plt.subplots(figsize=(6,4))
+        axes.plot(losses[0])
+        axes.plot(losses[1])
         axes.legend(['Network loss', 'Inference loss'])
-        axes.grid(True)
         axes.set_xlabel('inference steps')
         axes.set_ylabel('loss (log scaled)')
         axes.set_yscale('log')
         axes.set_title('History of loss during interaction inference')
         
+        plt.tight_layout()
         plt.savefig(f'{plot_path}_losses.png', dpi=300)
         if show:
             plt.show()
             
     def plot_accuracy(self, acc, plot_path, show=True):
-        fig = plt.figure()
-        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
+        fig, axes = plt.subplots(figsize=(6,4))
         axes.plot(acc, 'r')
-        axes.grid(True)
         axes.set_xlabel('inference steps')
-        axes.set_ylabel('Accuracy (%)')
+        axes.set_ylabel('Accuracy $(\%)$')
         axes.set_title('Accuracy during interaction inference')
         
+        plt.tight_layout()
         plt.savefig(f'{plot_path}_accuracy.png', dpi=300)
         if show:
             plt.show()
+            
+    def plot_confusion_matrix(self, y_test, y_pred, plot_path, show=True):
+        cm = confusion_matrix(y_test, y_pred)
+        df_cm = pd.DataFrame(cm, index=CLASSES, columns=CLASSES)
+
+        fig, axes = plt.subplots(figsize=(6,4))
+        hmap = sns.heatmap(df_cm/np.sum(df_cm), annot=True, fmt=".2f", cmap='Blues')
+        hmap.yaxis.set_ticklabels(hmap.yaxis.get_ticklabels(), rotation=0, ha='right')
+        hmap.xaxis.set_ticklabels(hmap.xaxis.get_ticklabels(), rotation=0, ha='right')
+        hmap.tick_params(axis='both', which='both', length=0)
+        
+        plt.ylabel('True interaction label')
+        plt.xlabel('Inference prediction')   
+        plt.tight_layout()  
+        plt.savefig(f'{plot_path}_confusion.png', dpi=300)
+        if show:
+            plt.show()
+            
+    def plot_inference(self, inferences, labels, plot_path):
+        indeces = [labels.index(int_type) for int_type in CLASSES_INT]
+        
+        softmax_each_type = []
+        for index in indeces:
+            softmax = [F.softmax(inference * 10, dim=1)[index,:]
+                       for inference in inferences]
+            softmax = torch.stack(softmax, dim=1).tolist()
+            add_start_value = [
+                row.insert(0, 0.25) for row in softmax
+             ]
+            softmax_each_type.append(softmax)
+        #print(plt.style.available)
+        fig, axes = plt.subplots(2, 2, figsize=(8, 6))
+        #axes.grid(True)
+        for i in CLASSES_INT:
+            axes[0, 0].plot(softmax_each_type[0][i])
+            axes[0, 1].plot(softmax_each_type[1][i])
+            axes[1, 0].plot(softmax_each_type[2][i])
+            axes[1, 1].plot(softmax_each_type[3][i])
+            
+        #axes.legend(['A', 'B', 'C', 'D'])
+        # axes.set_xlabel('inference steps')
+        # axes.set_ylabel('inference (softmax)')
+        axes[0, 0].set_title('Interaction A')
+        axes[0, 1].set_title('Interaction B')
+        axes[1, 0].set_title('Interaction C')
+        axes[1, 1].set_title('Interaction D')
+        
+        for ax in axes.flat:
+            ax.set(xlabel='inference steps', 
+                   ylabel='inference (softmax)',
+                   ylim=[0, 1])
+        for ax in axes.flat:
+            ax.label_outer()
+        
+        fig.legend(['A', 'B', 'C', 'D'], loc=(0.87, 0.68))
+        
+        plt.tight_layout()
+        plt.savefig(f'{plot_path}_inference.png', dpi=300)
+        plt.show()
     
 def main():
     
@@ -314,8 +383,8 @@ def main():
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = False
-    no_forces_no_orientation = True
+    no_forces = True
+    no_forces_no_orientation = False
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     n_out = 6 if no_forces_no_orientation else n_out
@@ -360,7 +429,7 @@ def main():
     teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
 
-    inference_steps = 50
+    inference_steps = 30
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -375,10 +444,10 @@ def main():
 
     resnet60_no_orientation = 'core_res_lstm_2_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_nfno_ts121'
 
-    model_name = resnet60_no_orientation
+    model_name = resnet60_best_tuning
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
-    
+    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
+   
     model = CORE_NET(
         input_size=n_dim*n_features+n_independent+n_interactions, 
         batch_size=batch_size,
@@ -395,7 +464,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.02,
+        lr=0.05,
     )
 
     inference = InteractionInference(
@@ -411,15 +480,18 @@ def main():
     
     print(f"model.event_code.requires_grad = {model.event_code.requires_grad}")
 
-    int_inference, interaction, losses, inference_losses, accuracies = inference.infer_interactions(
-        # dataloader=train_dataloader
+    int_inferences, interaction, losses, inference_losses, accuracies = inference.infer_interactions(
         seq=seq,
         label=label,
         interaction=interaction,
     )
     
     with torch.no_grad():
+        
+        int_inference = int_inferences[-1]
+        int_inference2 = int_inferences[-2]
         print(int_inference[:5])
+        print(int_inference2[:5])
         print(torch.round(F.softmax(int_inference[:5] * 10, dim=1), decimals=2))
         print(interaction[:5])
         
@@ -428,6 +500,9 @@ def main():
         accuracy = correct / len(interaction)
         accuracy_percent = 100. * accuracy
         
+        interaction_label = interaction.cpu().tolist()
+        interaction_pred = inferece_pred.cpu().tolist()
+        
         print("\nFinal inference results: \n")
         print(f"Correct / Total = {correct} / {len(interaction)} = {accuracy:.4f}")
         print(f"Inference accuracy: {accuracy_percent:.4f} %")
@@ -435,10 +510,12 @@ def main():
         
         plot_path   = f"CoreLSTM/testing_predictions/inference/{model_name}"
         
+        print(classification_report(interaction_label, interaction_pred, target_names=CLASSES))
+        
         inference.plot_accuracy(accuracies, plot_path)
         inference.plot_losses([losses, inference_losses], plot_path)
-        
-        
+        inference.plot_confusion_matrix(interaction_label, interaction_pred, plot_path)
+        inference.plot_inference(int_inferences, interaction_label, plot_path)
     
         
         

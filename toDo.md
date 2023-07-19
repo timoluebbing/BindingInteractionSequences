@@ -61,11 +61,13 @@
 - [x] interaction module
 - [x] init event codes raus weil kein sinn
 - [ ] lstm utils parent class
-- [ ] reset optim für jeden inference cycle?
 - [ ] besseres model trainieren 
-- [ ] nach latex template fragen
-- [ ] BA Aufbau besprechen
-- [ ] ohne orientierung
+- [x] nach latex template fragen
+- [x] BA Aufbau besprechen
+- [x] ohne orientierung
+- [ ] confusion matrix
+- [ ] inference plots event codes
+- [ ] y axis same scale
 
 Softmax auf interaction code * 10 angewendet
 

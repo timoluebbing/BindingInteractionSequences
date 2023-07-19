@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import numpy as np
 import matplotlib.pyplot as plt
+import scienceplots
 from numpy import random
 from torch.utils.data import DataLoader
 from torch.nn import PairwiseDistance
@@ -19,6 +20,7 @@ from Data_Preparation.data_preparation import Preprocessor
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 from Data_Preparation.interaction_renderer import Interaction_Renderer
 
+plt.style.use('science')
 
 class LSTM_Tester():
 
@@ -330,47 +332,47 @@ class LSTM_Tester():
     
     
     def plot_losses_steps(self, losses, plot_path):
-        fig = plt.figure()
-        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
+        fig, axes= plt.subplots(figsize=(6,4))
         axes.plot(losses, 'r')
         axes.grid(True)
         axes.set_xlabel('sequence time steps')
         axes.set_ylabel('loss')
-        # axes.set_yscale('log')
+        axes.set_ylim([0.0, 0.07])
         axes.set_title('MSELoss for each test prediction time step')
         
+        plt.tight_layout()
         plt.savefig(f'{plot_path}_losses.png', dpi=300)
         plt.show()
     
     
     def plot_losses_objects(self, object_losses, plot_path):
-        fig = plt.figure()
-        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
+        fig, axes = plt.subplots(figsize=(6,4))
         for i in range(object_losses.shape[0]):
             axes.plot(object_losses[i]) 
-        axes.legend(['Actor 1', 'Actor 2', 'Ball'])
+        axes.legend(['Actor 1', 'Actor 2', 'Ball'], loc='upper left')
         axes.grid(True)
         axes.set_xlabel('sequence time steps')
         axes.set_ylabel('loss (object specific)')
-        # axes.set_yscale('log')
+        axes.set_ylim([0.0, 0.15])
         axes.set_title('MSELoss for each test prediction time step')
         
+        plt.tight_layout()
         plt.savefig(f'{plot_path}_obj_losses.png', dpi=300)
         plt.show()
     
         
     def plot_losses_types(self, type_losses, plot_path):
-        fig = plt.figure()
-        axes = fig.add_axes([0.12, 0.1, 0.8, 0.8]) 
+        fig, axes = plt.subplots(figsize=(6,4))
         for i in range(type_losses.shape[0]):
             axes.plot(type_losses[i]) 
-        axes.legend(['Coordinates', 'Orientation', 'Impact force'])
+        axes.legend(['Coordinates', 'Orientation', 'Impact force'], loc='upper left')
         axes.grid(True)
         axes.set_xlabel('sequence time steps')
         axes.set_ylabel('loss (type specific)')
-        # axes.set_yscale('log')
+        axes.set_ylim([0.0, 0.13])
         axes.set_title('MSELoss for each test prediction time step')
         
+        plt.tight_layout()
         plt.savefig(f'{plot_path}_type_losses.png', dpi=300)
         plt.show()
 
