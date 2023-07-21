@@ -140,15 +140,15 @@ class InteractionInference():
         # shape out: [seq_len=1, batch_size, features]
         t = out.squeeze()
         # a1, a2, b = t[:, [0,1]], t[:, [6,7]], t[:, [12,13]]
-        if self.num_dim == 4:
-            a1, a2, b = (
-                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
-                for i in range(self.num_obj)
-            )
-            
-        elif self.num_dim == 2:
+        if self.num_dim == 2:
             a1, a2, b = (
                 t[:, 2*i : 2*(i+1)]
+                for i in range(self.num_obj)
+            )
+
+        elif self.num_dim in [4, 6]:
+            a1, a2, b = (
+                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
                 for i in range(self.num_obj)
             )
         
@@ -383,7 +383,7 @@ def main():
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = True
+    no_forces = False
     no_forces_no_orientation = False
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
@@ -429,7 +429,7 @@ def main():
     teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
 
-    inference_steps = 30
+    inference_steps = 50
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -444,9 +444,11 @@ def main():
 
     resnet60_no_orientation = 'core_res_lstm_2_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_nfno_ts121'
 
-    model_name = resnet60_best_tuning
+    resnet60_forces = 'core_res_lstm_6_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_ts121'
+
+    model_name = resnet60_forces
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
-    model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
+    # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
    
     model = CORE_NET(
         input_size=n_dim*n_features+n_independent+n_interactions, 
@@ -464,7 +466,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.05,
+        lr=0.01,
     )
 
     inference = InteractionInference(

@@ -32,7 +32,7 @@ def main(train=True, validate=True, test=True, render=True):
     batch_size = 270 # * 3 = 840 = train_size
     timesteps = 121
     no_forces = False
-    no_forces_no_orientation = True
+    no_forces_no_orientation = False
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
     n_out = 6 if no_forces_no_orientation else n_out
