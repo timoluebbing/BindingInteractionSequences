@@ -290,6 +290,7 @@ class InteractionInference():
         axes.set_ylabel('loss (log scaled)')
         axes.set_yscale('log')
         axes.set_title('History of loss during interaction inference')
+        axes.grid()
         
         plt.tight_layout()
         plt.savefig(f'{plot_path}_losses.png', dpi=300)
@@ -302,6 +303,7 @@ class InteractionInference():
         axes.set_xlabel('inference steps')
         axes.set_ylabel('Accuracy $(\%)$')
         axes.set_title('Accuracy during interaction inference')
+        axes.grid()
         
         plt.tight_layout()
         plt.savefig(f'{plot_path}_accuracy.png', dpi=300)
@@ -346,9 +348,6 @@ class InteractionInference():
             axes[1, 0].plot(softmax_each_type[2][i])
             axes[1, 1].plot(softmax_each_type[3][i])
             
-        #axes.legend(['A', 'B', 'C', 'D'])
-        # axes.set_xlabel('inference steps')
-        # axes.set_ylabel('inference (softmax)')
         axes[0, 0].set_title('Interaction A')
         axes[0, 1].set_title('Interaction B')
         axes[1, 0].set_title('Interaction C')
@@ -358,6 +357,8 @@ class InteractionInference():
             ax.set(xlabel='inference steps', 
                    ylabel='inference (softmax)',
                    ylim=[0, 1])
+            ax.grid()
+            
         for ax in axes.flat:
             ax.label_outer()
         
