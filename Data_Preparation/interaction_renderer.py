@@ -39,8 +39,8 @@ class Interaction_Renderer():
         self.tensor_input = in_tensor
         self.interaction = interaction
         
-        self.n_dim_in  = n_input // n_features
-        self.n_dim_out = n_out // n_features
+        self.n_dim_in  = n_input // n_features if n_input != 10 else 4 # Ausnahme fall: no_ball_orientation
+        self.n_dim_out = n_out // n_features if n_out != 10 else 4
     
     
     ########################################################################
@@ -76,7 +76,7 @@ class Interaction_Renderer():
     # Render predicted output sequence from torch tensor
     ########################################################################
     def load_positions_at_frame_tensor(self, frame):
-        row_in = self.tensor_input[frame, :].tolist()
+        row_in = self.tensor_input[frame, :-5].tolist()
         row_out = self.tensor_output[frame, :].tolist()
         
         if self.n_dim_in == 2 and self.n_dim_out == 2:
@@ -101,6 +101,10 @@ class Interaction_Renderer():
             
             sin_in, sin_out = row_in[2::self.n_dim_in], row_out[2::self.n_dim_out]
             cos_in, cos_out = row_in[3::self.n_dim_in], row_out[3::self.n_dim_out]
+            
+            if len(sin_in) < self.n_features:
+                sin_in.append(None), sin_out.append(None)
+                cos_in.append(None), cos_out.append(None)
             
             return xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out
     
@@ -133,6 +137,8 @@ class Interaction_Renderer():
             for x_in, y_in, s_in, c_in, x_out, y_out, s_out, c_out in zip(xs_in, ys_in, sin_in, cos_in, xs_out, ys_out, sin_out, cos_out):
                 pygame.draw.circle(self.screen, self.black, (x_in, y_in), radius_in)
                 pygame.draw.circle(self.screen, self.green, (x_out, y_out), radius_out)
+                if c_in is None or s_in is None:
+                    continue
                 line_x_in = x_in + c_in * radius_in
                 line_y_in = y_in + s_in * radius_in
                 pygame.draw.line(self.screen, self.red, (x_in, y_in), (line_x_in, line_y_in), 2)

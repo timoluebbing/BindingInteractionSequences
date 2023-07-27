@@ -29,10 +29,12 @@ def main(render=True):
     batch_size = 280
     timesteps = 121
     seed = 2023
-    no_forces = False
-    no_forces_no_orientation = True
+    no_forces = True
+    no_forces_no_orientation = False
+    no_ball_orientation = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
+    n_out = 10 if no_ball_orientation else n_out
     n_out = 6 if no_forces_no_orientation else n_out
     
     dataset = TimeSeriesDataset(
@@ -40,6 +42,7 @@ def main(render=True):
         timesteps=timesteps,
         no_forces=no_forces,
         no_forces_no_orientation=no_forces_no_orientation,
+        no_ball_orientation=no_ball_orientation,
         n_out=n_out,
         use_distances_and_motor=True)
     generator = torch.Generator().manual_seed(seed)
@@ -90,11 +93,13 @@ def main(render=True):
 
     resnet60_forces = 'core_res_lstm_6_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_ts121'
 
-    model_name = resnet60_no_orientation
+    resnet60_no_ball_orientation = 'core_res_lstm_4_3_5_256_HuberLoss()_0.001_0.0_270_100_tfs60_tfd_nf_nbo_ts121'
+    
+    model_name = resnet60_no_ball_orientation
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
-    random_labels = True
+    random_labels = False
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -113,6 +118,7 @@ def main(render=True):
         num_independent_feat=n_independent,
         num_interactions=n_interactions,
         num_output=n_out,
+        no_ball_orientation=no_ball_orientation,
         model_save_path=model_save_path,
         random_labels = random_labels,
     )
@@ -131,9 +137,9 @@ def main(render=True):
     
     test_loss_path = f"CoreLSTM/testing_predictions/test_loss/{model_name}"
     test_loss_path += '_false_labels' if random_labels else '_true_labels'
-    # tester.plot_losses_steps(losses, test_loss_path)
-    # tester.plot_losses_objects(obj_losses, test_loss_path)
-    # tester.plot_losses_types(type_losses, test_loss_path)
+    tester.plot_losses_steps(losses, test_loss_path)
+    tester.plot_losses_objects(obj_losses, test_loss_path)
+    tester.plot_losses_types(type_losses, test_loss_path)
 
     if render:
         # Check prediction for one example with renderer

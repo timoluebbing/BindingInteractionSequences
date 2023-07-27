@@ -430,7 +430,7 @@ def main():
     teacher_forcing_steps = 60
     teacher_forcing_dropouts = True
 
-    inference_steps = 50
+    inference_steps = 30
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -467,7 +467,7 @@ def main():
 
     optimizer = AdamW(
         params=params,
-        lr=0.01,
+        lr=0.03,
     )
 
     inference = InteractionInference(

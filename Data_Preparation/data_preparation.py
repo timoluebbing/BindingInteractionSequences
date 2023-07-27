@@ -245,6 +245,7 @@ class Preprocessor():
         timesteps=200,
         no_forces=False, 
         no_forces_no_orientation=False,
+        no_ball_orientation=False,
         use_distances_and_motor=False, 
         distances_and_motor_only=False
     ):
@@ -263,13 +264,19 @@ class Preprocessor():
         sequence_list = self.load_concat_dataframe(path)
         tensor = self.dataframes_to_tensor(sequence_list)
 
+        # return tensor input for dataset class with dim=4 or dim=4 with no ball orientation
         if no_forces and use_distances_and_motor:
             
             tensors = []
             for i in range(self.num_features):
                 t = tensor[: ,skip_first_n_steps : timesteps, i*4 + i*2: (i+1)*4 + i*2]
-                tensors.append(t)
                 
+                # Remove ball orientation values if flag is set to true
+                if no_ball_orientation and i == self.num_features-1:
+                    tensors.append(t[:,:, :-2])
+                else:
+                    tensors.append(t)
+            
             dis_motor = tensor[: ,skip_first_n_steps : timesteps, (self.num_dimensions * self.num_features) : ]
             tensors.append(dis_motor)
             

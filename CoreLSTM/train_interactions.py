@@ -16,7 +16,7 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=True, test=True, render=True):
+def main(train=True, validate=False, test=True, render=False):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -31,10 +31,12 @@ def main(train=True, validate=True, test=True, render=True):
     seed = 2023
     batch_size = 270 # * 3 = 840 = train_size
     timesteps = 121
-    no_forces = False
+    no_forces = True
     no_forces_no_orientation = False
+    no_ball_orientation = True
     no_forces_out = False
     n_out = 12 if (no_forces or no_forces_out) else 18
+    n_out = 10 if no_ball_orientation else n_out
     n_out = 6 if no_forces_no_orientation else n_out
 
     dataset = TimeSeriesDataset(
@@ -42,6 +44,7 @@ def main(train=True, validate=True, test=True, render=True):
         timesteps=timesteps,
         no_forces=no_forces,
         no_forces_no_orientation=no_forces_no_orientation,
+        no_ball_orientation=no_ball_orientation,
         n_out=n_out,
         use_distances_and_motor=True
     )
@@ -60,7 +63,7 @@ def main(train=True, validate=True, test=True, render=True):
     
     
     ##### Model parameters #####
-    epochs = 1500
+    epochs = 100
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -86,6 +89,7 @@ def main(train=True, validate=True, test=True, render=True):
     model_name += '_tfd' if teacher_forcing_dropouts else ''
     model_name += '_nf' if no_forces else ''
     model_name += '_nfno' if no_forces_no_orientation else ''
+    model_name += '_nbo' if no_ball_orientation else ''
     model_name += '_nfo' if no_forces_out else ''
     model_name += f'_ts{timesteps}'
     
@@ -112,6 +116,7 @@ def main(train=True, validate=True, test=True, render=True):
             num_independent_feat=n_independent,
             num_interactions=n_interactions,
             num_output=n_out,
+            no_ball_orientation=no_ball_orientation,
             # pretrained_path=pretrained_path,
         )
         
@@ -144,6 +149,7 @@ def main(train=True, validate=True, test=True, render=True):
             num_independent_feat=n_independent,
             num_interactions=n_interactions,
             num_output=n_out,
+            no_ball_orientation=no_ball_orientation,
             model_save_path=model_save_path,   
         )
         

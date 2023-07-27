@@ -43,6 +43,7 @@ class LSTM_Tester():
         num_independent_feat,
         num_interactions,
         num_output,
+        no_ball_orientation,
         model_save_path,
         random_labels=False,
     ):
@@ -52,21 +53,17 @@ class LSTM_Tester():
             self.num_dim = int(num_output / num_feat)
             self.num_feature_types = self.num_dim // 2
 
-        elif num_output == 18:
+        elif num_output in [18, 6, 10]:
             self.num_dim = num_dim
             self.num_feature_types = self.num_dim // 2
-            
-        elif num_output == 6:
-            self.num_dim = num_dim
-            self.num_feature_types = self.num_dim // 2
-        
+
         self.timesteps = timesteps - 1 # input und label um einen step versetzt
         self.teacher_forcing_steps = teacher_forcing_steps
         self.teacher_forcing_dropouts = teacher_forcing_dropouts
         self.dropout_chance = 0.0
         random.seed(0)
         self.random_thresholds = random.random_sample((self.teacher_forcing_steps,))
-        
+
         self.num_obj = num_feat
         self.num_interactions = num_interactions
         self.num_output = num_output
@@ -75,8 +72,8 @@ class LSTM_Tester():
         self.loss_function = loss_function
         self.model_save_path = model_save_path
         self.random_labels = random_labels
-        
-        self.input_size = num_dim*num_feat
+
+        self.input_size = num_dim*num_feat - 2 if no_ball_orientation else num_dim*num_feat
 
         self.model = CORE_NET(
             input_size=self.input_size+num_independent_feat+num_interactions, 
@@ -152,7 +149,7 @@ class LSTM_Tester():
 
         elif self.num_dim in [4, 6]:
             a1, a2, b = (
-                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+                t[:, 2*i + i*(self.num_dim-2): 2*(i+1) + i*(self.num_dim-2)] 
                 for i in range(self.num_obj)
             )
         
@@ -173,9 +170,9 @@ class LSTM_Tester():
         loss = torch.tensor([0.0], device=self.device)
         
         with torch.no_grad():
-            for seq, label, interaction in tqdm(dataloader):
+            for seq, target, interaction in tqdm(dataloader):
                     
-                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
+                seq, target, interaction = self.model.restructure_data(seq, target, interaction)
 
                 seq_len, batch_size, num_features = seq.size()
         
@@ -188,7 +185,7 @@ class LSTM_Tester():
                     
                 outs = torch.stack(outs).to(self.device)
                 
-                single_loss = self.loss_function(outs, label)
+                single_loss = self.loss_function(outs, target)
                 loss += single_loss
                 
             total_loss = loss.clone().item()
@@ -206,8 +203,8 @@ class LSTM_Tester():
         batch_losses_each_step_data = np.zeros((self.num_feature_types, self.timesteps))
                             
         with torch.no_grad():
-            for seq, label, interaction in tqdm(dataloader):   
-                seq, label, interaction = self.model.restructure_data(seq, label, interaction)
+            for seq, target, interaction in tqdm(dataloader):   
+                seq, target, interaction = self.model.restructure_data(seq, target, interaction)
                 seq_len, batch_size, num_features = seq.size()
                 state = self.model.init_hidden(batch_size=batch_size)
                 outs = []
@@ -224,14 +221,14 @@ class LSTM_Tester():
                      batch_loss_each_step_objects, 
                      batch_loss_each_step_data) = self.losses_single_obj_type(
                                                     j, 
-                                                    label, 
+                                                    target, 
                                                     batch_loss_each_step, 
                                                     batch_loss_each_step_objects, 
                                                     batch_loss_each_step_data, 
                                                     out)
                      
                 outs_stacked = torch.stack(outs).to(self.device)
-                batch_loss = self.loss_function(outs_stacked, label)
+                batch_loss = self.loss_function(outs_stacked, target)
                 
                 batch_losses += batch_loss
                 batch_losses_each_step += batch_loss_each_step
@@ -246,57 +243,57 @@ class LSTM_Tester():
     def losses_single_obj_type(
         self, 
         j, 
-        label, 
+        target, 
         batch_loss_each_step, 
         batch_loss_each_step_objects, 
         batch_loss_each_step_data, 
         out
     ):  
         # Single time step loss
-        single_loss = self.loss_function(out, label[j, :, :])
+        single_loss = self.loss_function(out, target[j, :, :])
         single_loss = single_loss.item()
         batch_loss_each_step[j] = single_loss
                     
         for i in range(self.num_obj):
             # Object specific loss
-            single_object_out, single_object_label = self.get_data_by_object(out, label, i, j)
-            object_loss = self.loss_function(single_object_out, single_object_label)
+            single_object_out, single_object_target = self.get_data_by_object(out, target, i, j)
+            object_loss = self.loss_function(single_object_out, single_object_target)
             batch_loss_each_step_objects[i, j] = object_loss
                     
         for i in range(self.num_feature_types):
             # Data specific loss (coords, orientation, [force])
-            single_data_out, single_data_label = self.get_data_by_type(out, label, i, j)
-            data_loss = self.loss_function(single_data_out, single_data_label)
+            single_data_out, single_data_target = self.get_data_by_type(out, target, i, j)
+            data_loss = self.loss_function(single_data_out, single_data_target)
             batch_loss_each_step_data[i, j] = data_loss
             
         return batch_loss_each_step, batch_loss_each_step_objects, batch_loss_each_step_data
     
     
-    def get_data_by_object(self, out, label, i, j):
+    def get_data_by_object(self, out, target, i, j):
         object_out = out[:, i*self.num_dim : (i+1)*self.num_dim]
-        object_label = label[j, :, i*self.num_dim : (i+1)*self.num_dim]
-        return object_out, object_label
+        object_target = target[j, :, i*self.num_dim : (i+1)*self.num_dim]
+        return object_out, object_target
     
     
-    def get_data_by_type(self, out, label, i, j):
+    def get_data_by_type(self, out, target, i, j):
         os, ls = [], []
         
         for k in range(self.num_obj):
             o = out[:, 2*i + (self.num_dim*k) : 2*(i+1) + (self.num_dim*k)]
             os.append(o)
-            l = label[j, :, 2*i + (self.num_dim*k) : 2*(i+1) + (self.num_dim*k)]
+            l = target[j, :, 2*i + (self.num_dim*k) : 2*(i+1) + (self.num_dim*k)]
             ls.append(l)
         
         type_out = torch.cat(os, dim=1)
-        type_label = torch.cat(ls, dim=1)
+        type_target = torch.cat(ls, dim=1)
         
-        return type_out, type_label
+        return type_out, type_target
                 
                 
     def evaluate_model_with_renderer(self, dataloader, n_samples=4):
         
-        seq, label, interaction = next(iter(dataloader))
-        seq, label, interaction = self.model.restructure_data(seq, label, interaction)
+        seq, target, interaction = next(iter(dataloader))
+        seq, target, interaction = self.model.restructure_data(seq, target, interaction)
         
         seq_len, batch_size, num_features = seq.size()
         

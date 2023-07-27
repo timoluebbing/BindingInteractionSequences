@@ -17,6 +17,7 @@ class TimeSeriesDataset(Dataset):
         n_out=18, 
         no_forces=False,
         no_forces_no_orientation=False,
+        no_ball_orientation=False,
         use_distances_and_motor=True, 
         transform=None,
         num_samples=1200
@@ -41,6 +42,7 @@ class TimeSeriesDataset(Dataset):
         self.no_forces = no_forces
         self.no_forces_no_orientation = no_forces_no_orientation
         self.use_distances_and_motor = use_distances_and_motor
+        self.no_ball_orientation = no_ball_orientation
         self.num_samples = num_samples
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.prepro = Preprocessor(num_features=3, num_dimensions=6)
@@ -86,6 +88,7 @@ class TimeSeriesDataset(Dataset):
                     self.timesteps,
                     self.no_forces,
                     self.no_forces_no_orientation,
+                    self.no_ball_orientation,
                     self.use_distances_and_motor)
                 print(interaction_data.shape, end='\n\n')
                 
@@ -111,9 +114,12 @@ def main():
     dataset = TimeSeriesDataset(
         interaction_paths,
         timesteps=200,
-        n_out=6,
-        no_forces_no_orientation=True,
+        n_out=10,
+        no_forces=True,
+        no_forces_no_orientation=False,
+        no_ball_orientation=True
     )
+    
     generator = torch.Generator().manual_seed(seed)
     
     train_dataset, val_dataset, test_dataset = random_split(dataset, [0.7, 0.15, 0.15], generator)

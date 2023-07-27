@@ -43,10 +43,12 @@ class LSTM_Trainer():
         num_independent_feat,
         num_interactions,
         num_output,
+        no_ball_orientation,
         pretrained_path=None,
     ):
 
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') # 
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') #
+        # self.device = torch.device('cpu') 
         print(f'DEVICE TrainM: {self.device}')
         
         self.num_dim = num_dim
@@ -58,8 +60,10 @@ class LSTM_Trainer():
         self.layer_norm = layer_norm
         self.pretrained_path = pretrained_path
 
+        n_features = num_dim*num_feat - 2 if no_ball_orientation else num_dim*num_feat
+        
         self.model = CORE_NET(
-            input_size=num_dim*num_feat+num_independent_feat+num_interactions, 
+            input_size=n_features+num_independent_feat+num_interactions, 
             batch_size=batch_size,
             hidden_layer_size=hidden_num, 
             output_size=num_output,
@@ -244,7 +248,8 @@ class LSTM_Trainer():
                     
         model_state = best_model_wts if validate else self.model.state_dict()
         self.save_model(save_path, model_state)
-        print(f"Model with minimum validation loss: {min(val_losses):.6f}\n")
+        if validate:
+            print(f"Model with minimum validation loss: {min(val_losses):.6f}\n")
 
         return train_losses, val_losses
     
@@ -329,7 +334,8 @@ class LSTM_Trainer():
             output, state = self.model.forward(_input, interaction, state)
         else:
             # concat motor forces and distances to previous output
-            output = self.closed_loop_input(seq, j, outs[-1])
+            with torch.no_grad():
+                output = self.closed_loop_input(seq, j, outs[-1])
             # Closed loop lstm forward pass without teacherforcing
             output, state = self.model.forward(output, interaction, state)
                     
@@ -361,7 +367,7 @@ class LSTM_Trainer():
 
         elif self.num_dim in [4, 6]:
             a1, a2, b = (
-                t[:, [2*i + i*(self.num_dim-2), 2*(i+1) + i*(self.num_dim-2)]] 
+                t[:, 2*i + i*(self.num_dim-2): 2*(i+1) + i*(self.num_dim-2)] 
                 for i in range(self.num_feat)
             )
 

@@ -27,6 +27,7 @@ class CORE_NET(nn.Module):
         super(CORE_NET,self).__init__()
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
+        # self.device = torch.device('cpu') 
         print(f'DEVICE Core_Net: {self.device}')
 
         self.input_size = input_size
