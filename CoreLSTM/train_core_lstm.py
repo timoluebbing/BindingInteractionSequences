@@ -231,7 +231,7 @@ class LSTM_Trainer():
         train_losses = []
         val_losses = []
         min_loss = float('inf')
-        n_last_epochs = epochs / 10
+        n_last_epochs = epochs / 2.5
 
         for epoch in range(epochs):
 

@@ -16,7 +16,7 @@ from CoreLSTM.test_core_lstm import LSTM_Tester
 from Data_Preparation.interaction_dataset import TimeSeriesDataset
 
 
-def main(train=True, validate=False, test=True, render=False):
+def main(train=True, validate=True, test=True, render=True):
     
     interactions = ['A', 'B', 'C', 'D']
     interactions_num = [0, 1, 2, 3]
@@ -63,7 +63,7 @@ def main(train=True, validate=False, test=True, render=False):
     
     
     ##### Model parameters #####
-    epochs = 100
+    epochs = 2000
     
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
@@ -71,7 +71,7 @@ def main(train=True, validate=False, test=True, render=False):
     lr = 0.001
     weight_decay = 0.0 # 0.01
     betas = (0.9, 0.999)
-    teacher_forcing_steps = 60
+    teacher_forcing_steps = 40
     teacher_forcing_dropouts = True
     
     hidden_num = 256

@@ -93,13 +93,13 @@ def main(render=True):
 
     resnet60_forces = 'core_res_lstm_6_3_5_256_HuberLoss()_0.001_0.0_270_1500_tfs60_tfd_ts121'
 
-    resnet60_no_ball_orientation = 'core_res_lstm_4_3_5_256_HuberLoss()_0.001_0.0_270_100_tfs60_tfd_nf_nbo_ts121'
+    resnet60_no_ball_orientation = 'core_res_lstm_4_3_5_256_HuberLoss()_0.0005_0.0_270_2000_tfs60_tfd_nf_nbo_ts121'
     
     model_name = resnet60_no_ball_orientation
     model_save_path = f'CoreLSTM/models/{model_name}.pt'
     # model_save_path = f'CoreLSTM/models/tuning/{model_name}.pt'
     
-    random_labels = False
+    random_labels = True
 
     mse_loss = nn.MSELoss()
     huber_loss = nn.HuberLoss()
